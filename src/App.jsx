@@ -7,6 +7,7 @@ import CommunityScreen from './pages/Community/CommunityScreen';
 import PostDetailScreen from './pages/Community/PostDetailScreen';
 import CalculatorScreen from './pages/Calculator/CalculatorScreen';
 import MenuScreen from './pages/Menu/MenuScreen';
+import AIChatScreen from './pages/AIChat/AIChatScreen';
 
 // Placeholder for RecordScreen
 const RecordScreen = () => <div className="p-4"><h2 className="text-2xl font-bold mb-4">기록 (준비 중)</h2></div>;
@@ -24,6 +25,7 @@ function App() {
         <Route path="/calculator" element={<MainLayout><CalculatorScreen /></MainLayout>} />
         <Route path="/record" element={<MainLayout><RecordScreen /></MainLayout>} />
         <Route path="/menu" element={<MainLayout><MenuScreen /></MainLayout>} />
+        <Route path="/chat" element={<MainLayout><AIChatScreen /></MainLayout>} />
       </Routes>
     </Router>
   );

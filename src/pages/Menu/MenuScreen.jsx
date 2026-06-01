@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
 
 const MenuScreen = () => {
+  const navigate = useNavigate();
   const { isDarkMode, toggleDarkMode, currentLanguage, toggleLanguage } = useAppContext();
   const [showCacheMsg, setShowCacheMsg] = useState(false);
 
@@ -51,7 +53,7 @@ const MenuScreen = () => {
     <div className="flex flex-col h-full bg-[#F5F5F5] min-h-screen">
       {/* Header */}
       <div className="flex items-center justify-center p-4 border-b border-gray-200 bg-white relative">
-        <button className="absolute left-4 text-gray-800 p-2">
+        <button onClick={() => navigate(-1)} className="absolute left-4 text-gray-800 p-2 cursor-pointer hover:bg-gray-100 rounded-full transition-colors">
           <FaChevronLeft size={20} />
         </button>
         <h1 className="text-lg font-bold text-gray-900">내 정보</h1>

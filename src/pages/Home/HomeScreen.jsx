@@ -1,16 +1,23 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FaRobot } from 'react-icons/fa';
 
 const HomeScreen = () => {
+  const navigate = useNavigate();
+
   return (
     <div className="flex flex-col h-full bg-[#F5F5F5] pb-24 relative">
       <div className="p-4">
         {/* Header */}
         <div className="flex justify-between items-center mb-6 pt-2">
           <h1 className="text-2xl font-bold text-gray-900">현장링크 AI <span className="text-gray-400 text-lg">→ 계산 생태계</span></h1>
-          <div className="w-8 h-8 rounded-full bg-zinc-300 overflow-hidden">
+          <button 
+            onClick={() => navigate('/menu')} 
+            className="w-8 h-8 rounded-full bg-zinc-300 overflow-hidden cursor-pointer hover:opacity-95 active:scale-95 transition-all"
+            title="내 정보"
+          >
             <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" alt="Profile" />
-          </div>
+          </button>
         </div>
 
         {/* Search Bar */}
@@ -24,7 +31,10 @@ const HomeScreen = () => {
         </div>
 
         {/* AI Banner */}
-        <div className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl p-4 flex items-center mb-6 shadow-sm">
+        <div 
+          onClick={() => navigate('/chat')} 
+          className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-xl p-4 flex items-center mb-6 shadow-sm cursor-pointer hover:shadow-md active:scale-[0.99] transition-all"
+        >
           <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center mr-4 text-blue-500 shrink-0">
             <FaRobot size={24} />
           </div>
@@ -36,7 +46,10 @@ const HomeScreen = () => {
 
         {/* Categories */}
         <div className="space-y-3 mb-8">
-          <div className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl p-4 text-white shadow-md relative overflow-hidden">
+          <div 
+            onClick={() => navigate('/calculator', { state: { category: 'electric' } })}
+            className="bg-gradient-to-r from-slate-600 to-slate-700 rounded-xl p-4 text-white shadow-md relative overflow-hidden cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
             <div className="relative z-10">
               <h3 className="font-bold text-lg mb-1">[전기공사]</h3>
               <p className="text-xs text-gray-300">회로 설계, 규격, 안전 수칙</p>
@@ -46,7 +59,10 @@ const HomeScreen = () => {
             </div>
           </div>
           
-          <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-4 text-white shadow-md relative overflow-hidden">
+          <div 
+            onClick={() => navigate('/calculator', { state: { category: 'plumbing' } })}
+            className="bg-gradient-to-r from-emerald-600 to-emerald-700 rounded-xl p-4 text-white shadow-md relative overflow-hidden cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
             <div className="relative z-10">
               <h3 className="font-bold text-lg mb-1">[배관공사]</h3>
               <p className="text-xs text-gray-300">배관 시스템, 자재, 유량 계산</p>
@@ -56,7 +72,10 @@ const HomeScreen = () => {
             </div>
           </div>
 
-          <div className="bg-gradient-to-r from-zinc-600 to-zinc-700 rounded-xl p-4 text-white shadow-md relative overflow-hidden">
+          <div 
+            onClick={() => navigate('/calculator', { state: { category: 'engineering' } })}
+            className="bg-gradient-to-r from-zinc-600 to-zinc-700 rounded-xl p-4 text-white shadow-md relative overflow-hidden cursor-pointer hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
             <div className="relative z-10">
               <h3 className="font-bold text-lg mb-1">[일반 공학]</h3>
               <p className="text-xs text-gray-300">역학, 정역학, 유틸리티 도구</p>
@@ -101,7 +120,7 @@ const HomeScreen = () => {
               <span className="text-gray-400 mr-3">📅</span>
               <div>
                 <h4 className="font-bold text-sm text-gray-800">친환경 건축 기술 세미나</h4>
-                <p className="text-xs text-gray-500 mt-1">다음 주 화요일 오후 2시 온라인</p>
+                <p className="text-xs text-gray-500 mt-1">다음 주 화요일 오후 2시 online</p>
               </div>
             </div>
           </div>
@@ -109,7 +128,11 @@ const HomeScreen = () => {
       </div>
 
       {/* Floating AI Button */}
-      <button className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white z-40 hover:scale-105 transition-transform">
+      <button 
+        onClick={() => navigate('/chat')}
+        className="fixed bottom-20 right-4 w-14 h-14 bg-gradient-to-tr from-blue-500 to-indigo-600 rounded-full shadow-lg flex items-center justify-center text-white z-40 hover:scale-105 active:scale-95 transition-transform cursor-pointer"
+        title="AI 비서와 채팅"
+      >
         <FaRobot size={24} />
       </button>
     </div>

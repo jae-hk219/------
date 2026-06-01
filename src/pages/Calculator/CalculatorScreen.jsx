@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { FaSearch, FaChevronLeft, FaBolt, FaTint, FaCog, FaCalculator } from 'react-icons/fa';
+import { performCalculation } from '../../services/api';
 
 const CALCULATOR_DATA = {
   electric: {
@@ -48,7 +50,8 @@ const CALCULATOR_DATA = {
 };
 
 const CalculatorScreen = () => {
-  const [selectedCategory, setSelectedCategory] = useState(null); // null means Home 4-boxes
+  const location = useLocation();
+  const [selectedCategory, setSelectedCategory] = useState(location.state?.category || null); // null means Home 4-boxes
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
   const [selectedCalc, setSelectedCalc] = useState(null);
 
@@ -91,7 +94,6 @@ const CalculatorScreen = () => {
       setErrorMsg('');
       setIsCalculating(true);
       try {
-        const { performCalculation } = await import('../../services/api');
         const apiResult = await performCalculation(selectedCalc.id, vals, selectedCalc.formula);
         setResult(apiResult);
       } catch (e) {

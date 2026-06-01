@@ -40,7 +40,7 @@ const BottomNavBar = () => {
         </NavLink>
 
         <NavLink 
-          to="/menu" 
+          to="/chat" 
           className={({ isActive }) => `flex flex-col items-center justify-center w-full h-full ${isActive ? 'text-blue-500' : 'text-gray-500'}`}
         >
           <AiOutlineMessage size={24} />
