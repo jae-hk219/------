@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaRobot, FaPaperPlane, FaChevronLeft, FaTrashAlt, FaKey, FaTimes, FaEye, FaEyeSlash } from 'react-icons/fa';
+import { FaRobot, FaPaperPlane, FaChevronLeft, FaTrashAlt, FaKey, FaTimes, FaEye, FaEyeSlash, FaCog } from 'react-icons/fa';
 import { askAI } from '../../services/api';
 
 const CATEGORY_MAP = {
@@ -33,6 +33,14 @@ const SUGGESTIONS = {
   ]
 };
 
+const GEMINI_MODELS = [
+  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (최신/추천)' },
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite (부하 낮음/속도 최상 ⚡)' },
+  { id: 'gemini-3-flash', name: 'Gemini 3 Flash (표준)' },
+  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (구버전)' },
+  { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro (고성능 추론)' }
+];
+
 const AIChatScreen = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,10 +55,13 @@ const AIChatScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   
   // API Key States
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('openai_api_key') || '');
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [keyInput, setKeyInput] = useState('');
   const [showKeyText, setShowKeyText] = useState(false);
   const [showKeyManager, setShowKeyManager] = useState(false);
+  
+  // Model Select State
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('gemini_model') || 'gemini-3.5-flash');
   
   const messagesEndRef = useRef(null);
 
@@ -78,19 +89,25 @@ const AIChatScreen = () => {
     e.preventDefault();
     const cleanKey = keyInput.trim();
     if (!cleanKey) return;
-    localStorage.setItem('openai_api_key', cleanKey);
+    localStorage.setItem('gemini_api_key', cleanKey);
+    localStorage.setItem('gemini_model', selectedModel);
     setApiKey(cleanKey);
     setKeyInput('');
     setShowKeyText(false);
   };
 
   const handleRemoveKey = () => {
-    if (window.confirm('API Key를 삭제하시겠습니까? 대화 기록도 함께 초기화됩니다.')) {
-      localStorage.removeItem('openai_api_key');
+    if (window.confirm('Gemini API Key를 삭제하시겠습니까? 대화 기록도 함께 초기화됩니다.')) {
+      localStorage.removeItem('gemini_api_key');
       setApiKey('');
       setMessages([]);
       setShowKeyManager(false);
     }
+  };
+
+  const handleModelChange = (modelId) => {
+    setSelectedModel(modelId);
+    localStorage.setItem('gemini_model', modelId);
   };
 
   // --- Chat Handlers ---
@@ -114,7 +131,7 @@ const AIChatScreen = () => {
     setIsLoading(true);
 
     try {
-      const responseText = await askAI(text, apiKey, activeCategory);
+      const responseText = await askAI(text, apiKey, activeCategory, selectedModel);
 
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
@@ -123,10 +140,22 @@ const AIChatScreen = () => {
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
     } catch (error) {
+      let friendlyError = error.message;
+      if (error.message.includes('not found for API version')) {
+        friendlyError = `${selectedModel} 모델이 지원되지 않거나 현재 API 버전에서 활성화되지 않았습니다. 상단의 모델 설정에서 'Gemini 3.5 Flash' 또는 다른 모델로 변경해 보세요.`;
+      } else if (
+        error.message.includes('high demand') ||
+        error.message.includes('ResourceExhausted') ||
+        error.message.includes('quota') ||
+        error.message.includes('429') ||
+        error.message.includes('503')
+      ) {
+        friendlyError = `현재 ${selectedModel} 모델에 일시적으로 구글 서버 트래픽 부하가 몰려 응답이 제한되었습니다(또는 무료 API Key 할당량 초과). \n\n💡 해결 방법:\n1. 화면 오른쪽 상단의 ⚙️ 설정을 클릭해 서버 부하가 가장 적고 빠른 'Gemini 3.1 Flash Lite (부하 낮음/속도 최상 ⚡)' 모델로 변경해 보세요! 대화가 즉시 재개됩니다.\n2. 잠시 후(3~5초 후) 다시 질문을 보내주셔도 정상 작동합니다.`;
+      }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
         sender: 'ai',
-        text: '❌ 오류가 발생했습니다: ' + error.message,
+        text: '❌ 오류가 발생했습니다:\n\n' + friendlyError,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }]);
     } finally {
@@ -188,7 +217,7 @@ const AIChatScreen = () => {
           </button>
           <div>
             <span className="text-[10px] text-gray-500 font-medium">현장링크 AI 비서</span>
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">스마트 GPT 질문방</h1>
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">스마트 Gemini 질문방</h1>
           </div>
         </div>
 
@@ -200,30 +229,50 @@ const AIChatScreen = () => {
               <FaRobot className="text-white" size={36} />
             </div>
 
-            <h2 className="text-lg font-bold text-gray-900 mb-2">GPT-4o mini 연동</h2>
-            <p className="text-xs text-gray-500 leading-relaxed mb-6">
-              실시간 AI 비서와 대화하려면 OpenAI API Key를 입력해 주세요.<br />
+            <h2 className="text-lg font-bold text-gray-900 mb-2">Gemini API 연동</h2>
+            <p className="text-xs text-gray-500 leading-relaxed mb-5">
+              실시간 AI 비서와 대화하려면 Gemini API Key를 입력해 주세요.<br />
               입력하신 키는 이 브라우저에만 안전하게 보관됩니다.
             </p>
 
             <form onSubmit={handleActivateKey} className="space-y-4">
-              <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
-                <FaKey className="text-gray-400 mr-2 shrink-0" size={12} />
-                <input 
-                  type={showKeyText ? 'text' : 'password'}
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                  placeholder="sk-proj-... API Key 입력"
-                  className="w-full text-xs outline-none bg-transparent text-gray-800 pr-8"
-                  autoFocus
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowKeyText(!showKeyText)} 
-                  className="absolute right-3 text-gray-400 hover:text-gray-600 cursor-pointer"
+              {/* Model Select */}
+              <div className="text-left">
+                <label className="block text-[10px] font-bold text-gray-600 mb-1 ml-1">연동할 Gemini 모델</label>
+                <select
+                  value={selectedModel}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs outline-none text-gray-700 cursor-pointer font-medium"
                 >
-                  {showKeyText ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
-                </button>
+                  {GEMINI_MODELS.map((model) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* API Key Input */}
+              <div className="text-left">
+                <label className="block text-[10px] font-bold text-gray-600 mb-1 ml-1">Gemini API Key</label>
+                <div className="relative flex items-center bg-gray-50 border border-gray-200 rounded-xl px-3 py-2.5">
+                  <FaKey className="text-gray-400 mr-2 shrink-0" size={12} />
+                  <input 
+                    type={showKeyText ? 'text' : 'password'}
+                    value={keyInput}
+                    onChange={(e) => setKeyInput(e.target.value)}
+                    placeholder="AIzaSy... Gemini API Key 입력"
+                    className="w-full text-xs outline-none bg-transparent text-gray-800 pr-8"
+                    autoFocus
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowKeyText(!showKeyText)} 
+                    className="absolute right-3 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  >
+                    {showKeyText ? <FaEyeSlash size={14} /> : <FaEye size={14} />}
+                  </button>
+                </div>
               </div>
 
               <button 
@@ -240,7 +289,7 @@ const AIChatScreen = () => {
             </form>
 
             <p className="text-[10px] text-gray-400 mt-5 leading-relaxed">
-              API Key는 <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline">OpenAI 대시보드</a>에서 발급받을 수 있습니다.
+              API Key는 <a href="https://aistudio.google.com/" target="_blank" rel="noopener noreferrer" className="text-blue-500 underline font-semibold">Google AI Studio</a>에서 쉽게 무료로 발급받을 수 있습니다.
             </p>
           </div>
         </div>
@@ -261,19 +310,19 @@ const AIChatScreen = () => {
           </button>
           <div>
             <span className="text-[10px] text-gray-500 font-medium">현장링크 AI 비서</span>
-            <h1 className="text-sm font-bold text-gray-900 leading-tight">스마트 GPT 질문방</h1>
+            <h1 className="text-sm font-bold text-gray-900 leading-tight">스마트 Gemini 질문방</h1>
           </div>
         </div>
         
         <div className="flex items-center gap-1.5">
-          {/* GPT-4o mini active badge */}
+          {/* Gemini active badge with Settings Icon */}
           <button 
             onClick={() => setShowKeyManager(!showKeyManager)}
-            className="px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-all cursor-pointer shadow-sm bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
-            title="API Key 관리"
+            className="px-2 py-1 rounded-full text-[10px] font-bold border flex items-center gap-1 transition-all cursor-pointer shadow-sm bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+            title="모델 및 API Key 설정"
           >
-            <FaKey size={8} />
-            <span>GPT-4o mini</span>
+            <FaCog size={9} />
+            <span>{GEMINI_MODELS.find(m => m.id === selectedModel)?.name.split(' (')[0] || selectedModel}</span>
           </button>
 
           <button 
@@ -286,25 +335,43 @@ const AIChatScreen = () => {
         </div>
       </div>
 
-      {/* Key Manager Dropdown */}
+      {/* Settings / Key Manager Dropdown */}
       {showKeyManager && (
-        <div className="bg-white border-b border-gray-200 p-4 shadow-md sticky top-[57px] z-20 animate-fade-in">
-          <div className="flex justify-between items-center mb-2">
+        <div className="bg-white border-b border-gray-200 p-4 shadow-md sticky top-[57px] z-20 animate-fade-in space-y-3">
+          <div className="flex justify-between items-center">
             <h3 className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-              <FaKey className="text-emerald-500" size={12} />
-              API Key 관리
+              <FaCog className="text-indigo-500" size={12} />
+              AI 모델 및 API Key 설정
             </h3>
             <button onClick={() => setShowKeyManager(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
               <FaTimes size={14} />
             </button>
           </div>
-          <p className="text-[10px] text-gray-500 mb-3">현재 저장된 API Key로 GPT-4o mini에 직접 연결 중입니다.</p>
-          <button 
-            onClick={handleRemoveKey}
-            className="w-full bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-semibold py-2 rounded-xl text-xs transition-colors cursor-pointer"
-          >
-            🔑 API Key 삭제 및 연결 해제
-          </button>
+
+          {/* Model Switcher */}
+          <div>
+            <label className="block text-[10px] font-bold text-gray-600 mb-1">사용할 AI 모델 변경</label>
+            <select
+              value={selectedModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="w-full bg-gray-50 border border-gray-200 rounded-xl px-2.5 py-1.5 text-xs outline-none text-gray-700 cursor-pointer font-medium"
+            >
+              {GEMINI_MODELS.map((model) => (
+                <option key={model.id} value={model.id}>
+                  {model.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="pt-1">
+            <button 
+              onClick={handleRemoveKey}
+              className="w-full bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 font-semibold py-2 rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              🔑 Gemini API Key 삭제 및 연결 해제
+            </button>
+          </div>
         </div>
       )}
 
@@ -366,7 +433,7 @@ const AIChatScreen = () => {
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                 <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
               </div>
-              <span>GPT-4o mini 답변 작성 중...</span>
+              <span>{GEMINI_MODELS.find(m => m.id === selectedModel)?.name.split(' (')[0] || selectedModel} 답변 작성 중...</span>
             </div>
           </div>
         )}

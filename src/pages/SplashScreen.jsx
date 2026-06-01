@@ -7,7 +7,12 @@ const SplashScreen = () => {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate('/home');
+      const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
+      if (isLoggedIn) {
+        navigate('/home');
+      } else {
+        navigate('/login');
+      }
     }, 2500); // 2.5 seconds splash screen
     return () => clearTimeout(timer);
   }, [navigate]);

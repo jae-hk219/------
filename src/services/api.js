@@ -33,14 +33,15 @@ export const performCalculation = async (calcId, inputs, localFormula) => {
 };
 
 /**
- * Request AI Assistant answer via OpenAI GPT-4o mini
+ * Request AI Assistant answer via Google Gemini API
  * @param {string} query - The user's prompt
- * @param {string} apiKey - OpenAI API Key (required)
+ * @param {string} apiKey - Gemini API Key (required)
  * @param {string} category - Current active category for system prompt tailoring
+ * @param {string} model - Gemini model identifier (default: gemini-3.5-flash)
  */
-export const askAI = async (query, apiKey, category = 'all') => {
+export const askAI = async (query, apiKey, category = 'all', model = 'gemini-3.5-flash') => {
   if (!apiKey) {
-    throw new Error("OpenAI API Key가 설정되지 않았습니다. 상단에서 API Key를 입력해 주세요.");
+    throw new Error("Gemini API Key가 설정되지 않았습니다. 상단에서 API Key를 입력해 주세요.");
   }
 
   try {
@@ -51,24 +52,48 @@ export const askAI = async (query, apiKey, category = 'all') => {
       engineering: "당신은 일반 기계공학 및 재료역학 전문가 페르소나의 AI 비서입니다. 단위 환산 공식, 재료 중량 계산(철판, 콘크리트 비중 등), 물리량(토크, 회전력) 산출 공식 등에 대한 기하학적/수학적 답변을 한국어로 제공하세요."
     };
 
-    const response = await axios.post('https://api.openai.com/v1/chat/completions', {
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: systemPrompts[category] || systemPrompts.all },
-        { role: 'user', content: query }
-      ],
-      temperature: 0.7
-    }, {
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
+    const systemInstructionText = systemPrompts[category] || systemPrompts.all;
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        contents: [
+          {
+            parts: [
+              {
+                text: query
+              }
+            ]
+          }
+        ],
+        systemInstruction: {
+          parts: [
+            {
+              text: systemInstructionText
+            }
+          ]
+        },
+        generationConfig: {
+          temperature: 0.7
+        }
       },
-      timeout: 30000
-    });
-    return response.data.choices[0].message.content;
+      {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 30000
+      }
+    );
+
+    const candidate = response.data?.candidates?.[0];
+    const text = candidate?.content?.parts?.[0]?.text;
+    if (!text) {
+      throw new Error("Gemini API가 빈 응답을 반환했습니다.");
+    }
+    return text;
   } catch (error) {
-    console.error("OpenAI API Error:", error);
-    const errMsg = error.response?.data?.error?.message || "OpenAI API 서버와의 통신에 실패했습니다. API Key와 네트워크 상태를 확인해 주세요.";
+    console.error("Gemini API Error:", error);
+    const errMsg = error.response?.data?.error?.message || error.message || "Gemini API 서버와의 통신에 실패했습니다. API Key와 네트워크 상태를 확인해 주세요.";
     throw new Error(errMsg);
   }
 };
