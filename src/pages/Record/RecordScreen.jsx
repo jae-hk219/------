@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaTrash, FaChevronLeft, FaStickyNote, FaCheck, FaFolderOpen, FaArrowRight } from 'react-icons/fa';
+import { FaSearch, FaTrash, FaChevronLeft, FaStickyNote, FaCheck, FaFolderOpen, FaArrowRight, FaSync } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { getLocalRecords, saveLocalRecords, saveRemoteRecords, syncRecords, migrateLegacyRecords } from '../../services/recordSync';
 
 const RecordScreen = () => {
   const navigate = useNavigate();
-  const { isDarkMode, t } = useAppContext();
+  const { isDarkMode, t, currentUser } = useAppContext();
 
   // Dynamic state
   const [records, setRecords] = useState([]);
@@ -14,21 +15,44 @@ const RecordScreen = () => {
   const [memoText, setMemoText] = useState('');
   const [toastMsg, setToastMsg] = useState('');
   const [viewCounts, setViewCounts] = useState({});
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Load calculations & view counts
   useEffect(() => {
     loadData();
-  }, []);
+  }, [currentUser]);
 
-  const loadData = () => {
+  const loadData = async () => {
+    const userId = currentUser?.id || 'guest';
+    
+    // 1. Load local cache immediately
     try {
-      const storedRecords = JSON.parse(localStorage.getItem('calculation_records')) || [];
+      const storedRecords = getLocalRecords(userId);
       setRecords(storedRecords);
 
       const storedViews = JSON.parse(localStorage.getItem('calculation_views')) || {};
       setViewCounts(storedViews);
     } catch (e) {
-      console.error("Failed to load records from storage:", e);
+      console.error("Failed to load local records:", e);
+    }
+
+    if (userId === 'guest') return;
+
+    setIsSyncing(true);
+    try {
+      // 2. Perform Migration of any legacy records
+      const migrated = await migrateLegacyRecords(userId);
+      if (migrated) {
+        setRecords(getLocalRecords(userId));
+      }
+
+      // 3. Bidirectional Sync
+      const synced = await syncRecords(userId);
+      setRecords(synced);
+    } catch (e) {
+      console.error("Failed to sync records with Firebase:", e);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -43,16 +67,27 @@ const RecordScreen = () => {
   // Handle Memo Save
   const handleSaveMemo = (recordId) => {
     try {
+      const userId = currentUser?.id || 'guest';
       const updatedRecords = records.map(rec => {
         if (rec.id === recordId) {
-          return { ...rec, memo: memoText.trim() };
+          return { 
+            ...rec, 
+            memo: memoText.trim(),
+            updatedAt: new Date().toISOString()
+          };
         }
         return rec;
       });
-      localStorage.setItem('calculation_records', JSON.stringify(updatedRecords));
+      saveLocalRecords(userId, updatedRecords);
       setRecords(updatedRecords);
       setEditingMemoId(null);
       showToast("📝 메모가 저장되었습니다!");
+      
+      if (userId !== 'guest') {
+        saveRemoteRecords(userId, updatedRecords).catch(e => {
+          console.warn("Deferred Firebase sync for memo update:", e);
+        });
+      }
     } catch (err) {
       console.error(err);
     }
@@ -68,10 +103,17 @@ const RecordScreen = () => {
   const handleDeleteRecord = (e, recordId) => {
     e.stopPropagation(); // Avoid card click navigation
     try {
+      const userId = currentUser?.id || 'guest';
       const updatedRecords = records.filter(rec => rec.id !== recordId);
-      localStorage.setItem('calculation_records', JSON.stringify(updatedRecords));
+      saveLocalRecords(userId, updatedRecords);
       setRecords(updatedRecords);
       showToast("🗑️ 계산 기록이 삭제되었습니다.");
+      
+      if (userId !== 'guest') {
+        saveRemoteRecords(userId, updatedRecords).catch(e => {
+          console.warn("Deferred Firebase sync for delete:", e);
+        });
+      }
     } catch (err) {
       console.error(err);
     }
@@ -133,7 +175,12 @@ const RecordScreen = () => {
             <span className={`text-[10px] uppercase tracking-wider block mb-0.5 ${
               isDarkMode ? 'text-zinc-550' : 'text-gray-400'
             }`}>스마트 보관소</span>
-            <h1 className="text-base font-extrabold leading-tight">계산 기록</h1>
+            <h1 className="text-base font-extrabold leading-tight flex items-center gap-1.5">
+              <span>계산 기록</span>
+              {isSyncing && (
+                <FaSync className="text-blue-500 animate-spin" size={11} title="동기화 중..." />
+              )}
+            </h1>
           </div>
         </div>
       </div>

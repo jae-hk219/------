@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { FaSearch, FaChevronLeft, FaBolt, FaTint, FaCog, FaCalculator } from 'react-icons/fa';
 import { performCalculation } from '../../services/api';
 import { useAppContext } from '../../context/AppContext';
+import { getLocalRecords, saveLocalRecords, saveRemoteRecords } from '../../services/recordSync';
 
 const CALCULATOR_DATA = {
   electric: {
@@ -65,7 +66,7 @@ const incrementViewCount = (calcId) => {
 
 const CalculatorScreen = () => {
   const location = useLocation();
-  const { isDarkMode } = useAppContext();
+  const { isDarkMode, currentUser } = useAppContext();
   const [selectedCategory, setSelectedCategory] = useState(location.state?.category || null); // null means Home 4-boxes
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
   const [selectedCalc, setSelectedCalc] = useState(null);
@@ -142,7 +143,8 @@ const CalculatorScreen = () => {
 
         // Record history logs
         try {
-          const records = JSON.parse(localStorage.getItem('calculation_records')) || [];
+          const userId = currentUser?.id || 'guest';
+          const records = getLocalRecords(userId);
           const newRecord = {
             id: Date.now() + Math.random().toString(36).substr(2, 9),
             category: selectedCategory,
@@ -153,10 +155,17 @@ const CalculatorScreen = () => {
             inputValues: inputValues,
             result: apiResult,
             timestamp: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
             memo: ''
           };
           records.unshift(newRecord);
-          localStorage.setItem('calculation_records', JSON.stringify(records));
+          saveLocalRecords(userId, records);
+          
+          if (userId !== 'guest') {
+            saveRemoteRecords(userId, records).catch(e => {
+              console.warn("Deferred Firebase sync for new record:", e);
+            });
+          }
         } catch (err) {
           console.error("Failed to write to calculation_records:", err);
         }
