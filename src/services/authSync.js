@@ -1,9 +1,9 @@
-import axios from 'axios';
-
-const KVDB_URL = '/api/users';
+// Firebase Realtime Database REST API
+const FIREBASE_DB_URL = 'https://engineering-ai-ba3e2-default-rtdb.firebaseio.com';
+const USERS_ENDPOINT = `${FIREBASE_DB_URL}/users.json`;
 
 /**
- * Helper to get local registered users
+ * Helper to get local registered users (localStorage cache)
  */
 export const getLocalUsers = () => {
   try {
@@ -15,7 +15,7 @@ export const getLocalUsers = () => {
 };
 
 /**
- * Helper to save local registered users
+ * Helper to save local registered users (localStorage cache)
  */
 export const saveLocalUsers = (users) => {
   try {
@@ -26,34 +26,49 @@ export const saveLocalUsers = (users) => {
 };
 
 /**
- * Fetch registered users from the remote key-value store
+ * Fetch registered users from Firebase Realtime Database
  */
 export const fetchRemoteUsers = async () => {
   try {
-    const response = await axios.get(KVDB_URL, { timeout: 4000 });
-    if (response.data && Array.isArray(response.data)) {
-      return response.data;
+    const response = await fetch(USERS_ENDPOINT, { 
+      method: 'GET',
+      headers: { 'Accept': 'application/json' },
+      signal: AbortSignal.timeout(5000)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`Firebase responded with ${response.status}`);
     }
-    return [];
+    
+    const data = await response.json();
+    
+    // Firebase returns null for empty database, or an object/array
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    
+    // If Firebase returns an object (keyed by index), convert to array
+    return Object.values(data);
   } catch (error) {
-    // If the key is not initialized yet (404), return empty array
-    if (error.response && error.response.status === 404) {
-      return [];
-    }
-    console.warn('Failed to fetch remote users, using fallback:', error.message);
-    throw error; // Re-throw to let the caller know it failed
+    console.warn('Failed to fetch remote users:', error.message);
+    throw error;
   }
 };
 
 /**
- * Save registered users to the remote key-value store
+ * Save registered users to Firebase Realtime Database
  */
 export const saveRemoteUsers = async (users) => {
   try {
-    await axios.put(KVDB_URL, users, {
+    const response = await fetch(USERS_ENDPOINT, {
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      timeout: 4000
+      body: JSON.stringify(users),
+      signal: AbortSignal.timeout(5000)
     });
+    
+    if (!response.ok) {
+      throw new Error(`Firebase responded with ${response.status}`);
+    }
   } catch (error) {
     console.error('Failed to save remote users:', error.message);
     throw error;
