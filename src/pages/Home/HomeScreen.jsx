@@ -40,8 +40,6 @@ const HomeScreen = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editNewsList, setEditNewsList] = useState([]);
 
-  // Search input state
-  const [searchQuery, setSearchQuery] = useState('');
 
   // Load popular posts & news events
   useEffect(() => {
@@ -128,19 +126,6 @@ const HomeScreen = () => {
           </button>
         </div>
 
-        {/* Search Bar */}
-        <div className={`rounded-2xl p-3.5 flex items-center shadow-sm mb-6 border transition-colors ${
-          isDarkMode ? 'bg-zinc-900 border-zinc-800 text-white' : 'bg-white border-gray-100 text-black'
-        }`}>
-          <span className="text-gray-400 mr-2 text-xs">🔍</span>
-          <input 
-            type="text" 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="수식, 주제, 또는 AI 검색..." 
-            className="w-full outline-none text-xs bg-transparent placeholder-zinc-500 font-medium"
-          />
-        </div>
 
         {/* AI Banner */}
         <div 
