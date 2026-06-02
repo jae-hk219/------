@@ -100,7 +100,7 @@ const MenuScreen = () => {
       setActiveModal('translating');
       setTimeout(() => {
         setLanguage(lang);
-        window.location.reload();
+        closeAllModals();
       }, 1500); // 1.5 seconds spinner simulation for DeepL API
     }
   };
