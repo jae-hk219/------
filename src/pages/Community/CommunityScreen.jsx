@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaSearch, FaEllipsisV, FaPen, FaCommentAlt, FaEyeSlash, FaSync } from 'react-icons/fa';
+import { FaChevronLeft, FaSearch, FaEllipsisV, FaPen, FaCommentAlt, FaEyeSlash, FaSync, FaUserCircle, FaTimes } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
 import { getLocalPosts, syncPosts } from '../../services/communitySync';
+import { getLocalUsers } from '../../services/authSync';
 
 // Empty post database as requested: "지금 떠 있는 글들은 다 삭제하고 아무것도 없는 상태로 만들 것."
 export const MOCK_POSTS = [];
@@ -15,6 +16,8 @@ const CommunityScreen = () => {
   const [activeCategory, setActiveCategory] = useState('전체');
   const [posts, setPosts] = useState([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [selectedAuthor, setSelectedAuthor] = useState(null);
 
   // Load and sync posts
   useEffect(() => {
@@ -24,6 +27,7 @@ const CommunityScreen = () => {
   const loadPosts = async () => {
     try {
       setPosts(getLocalPosts());
+      setRegisteredUsers(getLocalUsers());
     } catch (e) {
       console.error(e);
     }
@@ -154,7 +158,36 @@ const CommunityScreen = () => {
               <div className={`flex items-center justify-between text-[10px] pt-3 border-t ${
                 isDarkMode ? 'border-zinc-800/80 text-zinc-500' : 'border-gray-100 text-gray-400'
               }`}>
-                <span className="font-bold">{post.author}</span>
+                <button 
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const userDetails = registeredUsers.find(u => u.id === post.userId) || { 
+                      id: post.userId || 'guest', 
+                      nickname: post.author, 
+                      specialty: '일반 전문가', 
+                      profileImage: null 
+                    };
+                    setSelectedAuthor(userDetails);
+                  }}
+                  className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all text-left cursor-pointer"
+                >
+                  {(() => {
+                    const userDetails = registeredUsers.find(u => u.id === post.userId);
+                    const img = userDetails?.profileImage;
+                    if (img) {
+                      return (
+                        <img src={img} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-zinc-800/10 shrink-0" />
+                      );
+                    }
+                    return (
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gray-200 text-gray-500 shrink-0">
+                        <FaUserCircle size={12} />
+                      </div>
+                    );
+                  })()}
+                  <span className="font-bold">{post.author}</span>
+                </button>
                 <div className="flex items-center gap-1 bg-zinc-500/10 px-2.5 py-1 rounded-full">
                   <FaCommentAlt size={10} className="text-blue-500" />
                   <span className="font-semibold text-blue-500">
@@ -183,6 +216,61 @@ const CommunityScreen = () => {
         <FaPen size={14} className="mb-0.5" />
         <span className="text-[9px] font-bold">{t('community_write')}</span>
       </button>
+
+      {/* ================= AUTHOR PROFILE MODAL ================= */}
+      {selectedAuthor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className={`w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-scale-up border transition-colors ${
+            isDarkMode ? 'bg-zinc-950 border-zinc-800 text-white' : 'bg-white border-gray-200 text-black'
+          }`}>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setSelectedAuthor(null)}
+                className={`p-1.5 rounded-full transition-colors ${
+                  isDarkMode ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-gray-100 text-gray-500'
+                }`}
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center text-center mt-2 mb-4">
+              {selectedAuthor.profileImage ? (
+                <img 
+                  src={selectedAuthor.profileImage} 
+                  alt="Author Profile" 
+                  className="w-16 h-16 rounded-full object-cover mb-4 border border-gray-300 shadow-sm"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-200 text-gray-400 mb-4 shadow-inner">
+                  <FaUserCircle size={44} />
+                </div>
+              )}
+
+              <h3 className="text-base font-extrabold tracking-tight mb-1">
+                {selectedAuthor.nickname || '익명'}
+              </h3>
+              
+              <span className="text-[9px] font-black text-blue-500 bg-blue-500/10 px-2.5 py-0.5 rounded-full mb-6 uppercase tracking-wider">
+                {selectedAuthor.specialty || '일반 전문가'}
+              </span>
+
+              <div className={`w-full p-3.5 rounded-2xl border text-xs font-semibold space-y-2 text-left leading-relaxed ${
+                isDarkMode ? 'bg-zinc-900 border-zinc-850' : 'bg-gray-50 border-gray-100'
+              }`}>
+                <div className="flex justify-between border-b border-dashed border-zinc-800/15 pb-1.5">
+                  <span className="opacity-60 text-[10px]">계정 아이디 (ID)</span>
+                  <span className="font-extrabold">{selectedAuthor.id || 'guest'}</span>
+                </div>
+                <div className="flex justify-between pt-0.5">
+                  <span className="opacity-60 text-[10px]">전문 분야</span>
+                  <span className="font-bold">{selectedAuthor.specialty || '미등록'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

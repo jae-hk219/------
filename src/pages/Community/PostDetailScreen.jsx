@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaThumbsUp, FaThumbsDown, FaPaperPlane, FaUserCircle, FaRegCommentDots, FaSync } from 'react-icons/fa';
+import { FaChevronLeft, FaThumbsUp, FaThumbsDown, FaPaperPlane, FaUserCircle, FaRegCommentDots, FaSync, FaTimes } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
 import { getLocalPosts, syncPosts, getLocalComments, saveLocalComments, saveRemoteComments, syncComments } from '../../services/communitySync';
+import { getLocalUsers } from '../../services/authSync';
 
 const PostDetailScreen = () => {
   const { id } = useParams();
@@ -13,6 +14,8 @@ const PostDetailScreen = () => {
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
+  const [registeredUsers, setRegisteredUsers] = useState([]);
+  const [selectedAuthor, setSelectedAuthor] = useState(null);
 
   // Clicks for like / dislike toggle mechanism
   const [likeClicks, setLikeClicks] = useState(0);
@@ -31,6 +34,7 @@ const PostDetailScreen = () => {
         setPost(matched);
       }
       setComments(getLocalComments(id));
+      setRegisteredUsers(getLocalUsers());
     } catch (err) {
       console.error(err);
     }
@@ -125,7 +129,35 @@ const PostDetailScreen = () => {
         <div className={`flex items-center text-[10px] mb-6 pb-4 border-b ${
           isDarkMode ? 'border-zinc-800 text-zinc-500' : 'border-gray-100 text-gray-400'
         }`}>
-          <span className="mr-3 font-bold text-blue-500">{post.author}</span>
+          <button 
+            type="button"
+            onClick={() => {
+              const userDetails = registeredUsers.find(u => u.id === post.userId) || { 
+                id: post.userId || 'guest', 
+                nickname: post.author, 
+                specialty: '일반 전문가', 
+                profileImage: null 
+              };
+              setSelectedAuthor(userDetails);
+            }}
+            className="flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all text-left cursor-pointer mr-3"
+          >
+            {(() => {
+              const userDetails = registeredUsers.find(u => u.id === post.userId);
+              const img = userDetails?.profileImage;
+              if (img) {
+                return (
+                  <img src={img} alt="Profile" className="w-5 h-5 rounded-full object-cover border border-zinc-800/10 shrink-0" />
+                );
+              }
+              return (
+                <div className="w-5 h-5 rounded-full flex items-center justify-center bg-gray-200 text-gray-500 shrink-0">
+                  <FaUserCircle size={12} />
+                </div>
+              );
+            })()}
+            <span className="font-bold text-blue-500">{post.author}</span>
+          </button>
           <span>{post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '방금 전'}</span>
         </div>
         
@@ -192,10 +224,35 @@ const PostDetailScreen = () => {
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-extrabold text-blue-500 flex items-center gap-1">
-                      <FaUserCircle size={12} className="text-zinc-500" />
-                      {comm.author}
-                    </span>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        const userDetails = registeredUsers.find(u => u.id === comm.userId) || { 
+                          id: comm.userId || 'guest', 
+                          nickname: comm.author, 
+                          specialty: '일반 전문가', 
+                          profileImage: null 
+                        };
+                        setSelectedAuthor(userDetails);
+                      }}
+                      className="text-[10px] font-extrabold text-blue-500 flex items-center gap-1.5 hover:opacity-80 active:scale-95 transition-all text-left cursor-pointer"
+                    >
+                      {(() => {
+                        const userDetails = registeredUsers.find(u => u.id === comm.userId);
+                        const img = userDetails?.profileImage;
+                        if (img) {
+                          return (
+                            <img src={img} alt="Profile" className="w-4.5 h-4.5 rounded-full object-cover border border-zinc-800/10 shrink-0" />
+                          );
+                        }
+                        return (
+                          <div className="w-4.5 h-4.5 rounded-full flex items-center justify-center bg-gray-200 text-gray-500 shrink-0">
+                            <FaUserCircle size={10} />
+                          </div>
+                        );
+                      })()}
+                      <span>{comm.author}</span>
+                    </button>
                     <span className={`text-[8px] ${isDarkMode ? 'text-zinc-650' : 'text-gray-400'}`}>
                       {comm.date}
                     </span>
@@ -232,6 +289,61 @@ const PostDetailScreen = () => {
           </form>
         </div>
       </div>
+
+      {/* ================= AUTHOR PROFILE MODAL ================= */}
+      {selectedAuthor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className={`w-full max-w-xs rounded-3xl p-6 shadow-2xl animate-scale-up border transition-colors ${
+            isDarkMode ? 'bg-zinc-950 border-zinc-800 text-white' : 'bg-white border-gray-200 text-black'
+          }`}>
+            <div className="flex justify-end">
+              <button 
+                onClick={() => setSelectedAuthor(null)}
+                className={`p-1.5 rounded-full transition-colors ${
+                  isDarkMode ? 'hover:bg-zinc-800 text-zinc-400' : 'hover:bg-gray-100 text-gray-500'
+                }`}
+              >
+                <FaTimes size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col items-center text-center mt-2 mb-4">
+              {selectedAuthor.profileImage ? (
+                <img 
+                  src={selectedAuthor.profileImage} 
+                  alt="Author Profile" 
+                  className="w-16 h-16 rounded-full object-cover mb-4 border border-gray-300 shadow-sm"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full flex items-center justify-center bg-gray-200 text-gray-400 mb-4 shadow-inner">
+                  <FaUserCircle size={44} />
+                </div>
+              )}
+
+              <h3 className="text-base font-extrabold tracking-tight mb-1">
+                {selectedAuthor.nickname || '익명'}
+              </h3>
+              
+              <span className="text-[9px] font-black text-blue-500 bg-blue-500/10 px-2.5 py-0.5 rounded-full mb-6 uppercase tracking-wider">
+                {selectedAuthor.specialty || '일반 전문가'}
+              </span>
+
+              <div className={`w-full p-3.5 rounded-2xl border text-xs font-semibold space-y-2 text-left leading-relaxed ${
+                isDarkMode ? 'bg-zinc-900 border-zinc-850' : 'bg-gray-50 border-gray-100'
+              }`}>
+                <div className="flex justify-between border-b border-dashed border-zinc-800/15 pb-1.5">
+                  <span className="opacity-60 text-[10px]">계정 아이디 (ID)</span>
+                  <span className="font-extrabold">{selectedAuthor.id || 'guest'}</span>
+                </div>
+                <div className="flex justify-between pt-0.5">
+                  <span className="opacity-60 text-[10px]">전문 분야</span>
+                  <span className="font-bold">{selectedAuthor.specialty || '미등록'}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
