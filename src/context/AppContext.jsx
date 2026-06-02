@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import getTranslation from '../services/translation';
+import { updateRemoteUser } from '../services/authSync';
 
 const AppContext = createContext();
 
@@ -79,7 +80,7 @@ export const AppProvider = ({ children }) => {
     setCurrentUser(null);
   };
 
-  const updateCurrentUser = (updatedData) => {
+  const updateCurrentUser = async (updatedData) => {
     if (!currentUser) return;
     const newUserData = { ...currentUser, ...updatedData };
     localStorage.setItem('currentUser', JSON.stringify(newUserData));
@@ -87,9 +88,7 @@ export const AppProvider = ({ children }) => {
 
     // Also update registered_users database
     try {
-      const users = JSON.parse(localStorage.getItem('registered_users')) || [];
-      const updatedUsers = users.map(u => u.id === currentUser.id ? { ...u, ...updatedData } : u);
-      localStorage.setItem('registered_users', JSON.stringify(updatedUsers));
+      await updateRemoteUser(currentUser.id, updatedData);
     } catch (e) {
       console.error("Failed to update registered_users:", e);
     }

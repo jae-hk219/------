@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaWrench, FaBolt, FaUser, FaLock, FaAddressCard, FaGraduationCap, FaChevronRight } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { syncUsers, registerRemoteUser, getLocalUsers } from '../../services/authSync';
 
 const SPECIALTY_OPTIONS = [
   { value: '전기공사', label: '⚡ 전기공사' },
@@ -41,6 +42,11 @@ const LoginScreen = () => {
     }, 2500);
   };
 
+  // Sync users on mount
+  useEffect(() => {
+    syncUsers().catch(err => console.warn('Mount sync warning:', err));
+  }, []);
+
   // Fast 1.5 second loading trigger
   const runFastLoading = (userData) => {
     setShowFastLoading(true);
@@ -57,7 +63,7 @@ const LoginScreen = () => {
   };
 
   // Handle Login Submission
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     const id = loginId.trim();
     const pw = loginPw.trim();
@@ -67,11 +73,19 @@ const LoginScreen = () => {
       return;
     }
 
-    // Get registered users from localStorage
-    const users = JSON.parse(localStorage.getItem('registered_users')) || [];
-    
-    // Find matching user
-    const matchedUser = users.find(u => u.id === id && u.password === pw);
+    // Check against local database first
+    let users = getLocalUsers();
+    let matchedUser = users.find(u => u.id === id && u.password === pw);
+
+    // If not matched, try syncing with the remote server once to fetch any newly registered user
+    if (!matchedUser) {
+      try {
+        const syncedUsers = await syncUsers();
+        matchedUser = syncedUsers.find(u => u.id === id && u.password === pw);
+      } catch (err) {
+        console.warn('Sync on login failed, checking fallback:', err);
+      }
+    }
 
     if (matchedUser) {
       showToast('성공적으로 로그인되었습니다! 🎉', 'success');
@@ -98,7 +112,7 @@ const LoginScreen = () => {
   };
 
   // Handle Signup Submission
-  const handleSignupSubmit = (e) => {
+  const handleSignupSubmit = async (e) => {
     e.preventDefault();
     const id = signupId.trim();
     const pw = signupPw.trim();
@@ -125,31 +139,25 @@ const LoginScreen = () => {
       return;
     }
 
-    const users = JSON.parse(localStorage.getItem('registered_users')) || [];
-    
-    // Check duplication
-    if (users.some(u => u.id === id)) {
-      showToast('이미 사용 중인 아이디입니다.');
-      return;
+    try {
+      const newUser = { id, password: pw, nickname, specialty: signupSpecialty, profileImage: null };
+      await registerRemoteUser(newUser);
+
+      showToast('회원가입이 완료되었습니다! 로그인해 주세요. 👤', 'success');
+      
+      // Reset signup inputs
+      setSignupId('');
+      setSignupPw('');
+      setSignupPwConfirm('');
+      setSignupNickname('');
+      
+      // Switch to Login Tab
+      setTimeout(() => {
+        setActiveTab('login');
+      }, 1200);
+    } catch (error) {
+      showToast(error.message || '회원가입 중 오류가 발생했습니다.');
     }
-
-    // Register user
-    const newUser = { id, password: pw, nickname, specialty: signupSpecialty, profileImage: null };
-    users.push(newUser);
-    localStorage.setItem('registered_users', JSON.stringify(users));
-
-    showToast('회원가입이 완료되었습니다! 로그인해 주세요. 👤', 'success');
-    
-    // Reset signup inputs
-    setSignupId('');
-    setSignupPw('');
-    setSignupPwConfirm('');
-    setSignupNickname('');
-    
-    // Switch to Login Tab
-    setTimeout(() => {
-      setActiveTab('login');
-    }, 1200);
   };
 
   return (

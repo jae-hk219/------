@@ -1,10 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   FaChevronLeft, FaChevronRight, FaUser, FaCamera, FaLock, 
   FaLanguage, FaMoon, FaBell, FaBullhorn, FaTimes, FaSignOutAlt, FaUserTimes 
 } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { syncUsers, getLocalUsers, updateRemoteUser, deleteRemoteUser } from '../../services/authSync';
 
 const MenuScreen = () => {
   const navigate = useNavigate();
@@ -26,6 +27,11 @@ const MenuScreen = () => {
   const [pwStep, setPwStep] = useState(1); // 1: current, 2: new
   const [deletePwInput, setDeletePwInput] = useState('');
   const [selectedLangTemp, setSelectedLangTemp] = useState('');
+
+  // Sync users on mount
+  useEffect(() => {
+    syncUsers().catch(err => console.warn('Menu screen sync warning:', err));
+  }, []);
 
   // Handle Profile Photo Upload
   const handleImageChange = (e) => {
@@ -57,7 +63,7 @@ const MenuScreen = () => {
   const handleVerifyCurrentPw = (e) => {
     e.preventDefault();
     // Fetch registered users to verify password
-    const users = JSON.parse(localStorage.getItem('registered_users')) || [];
+    const users = getLocalUsers();
     const dbUser = users.find(u => u.id === currentUser?.id);
     
     // Check match (fallback is '1234' for admin mock user)
@@ -71,7 +77,7 @@ const MenuScreen = () => {
     }
   };
 
-  const handleUpdateNewPw = (e) => {
+  const handleUpdateNewPw = async (e) => {
     e.preventDefault();
     if (newPwInput.length < 4) {
       alert('비밀번호는 4자 이상이어야 합니다.');
@@ -79,14 +85,7 @@ const MenuScreen = () => {
     }
 
     try {
-      const users = JSON.parse(localStorage.getItem('registered_users')) || [];
-      const updatedUsers = users.map(u => {
-        if (u.id === currentUser?.id) {
-          return { ...u, password: newPwInput };
-        }
-        return u;
-      });
-      localStorage.setItem('registered_users', JSON.stringify(updatedUsers));
+      await updateRemoteUser(currentUser?.id, { password: newPwInput });
       alert(t('pw_change_success'));
     } catch (err) {
       console.error(err);
@@ -107,17 +106,16 @@ const MenuScreen = () => {
   };
 
   // 3. Account Deletion Handlers
-  const handleDeleteCheckPassword = (e) => {
+  const handleDeleteCheckPassword = async (e) => {
     e.preventDefault();
-    const users = JSON.parse(localStorage.getItem('registered_users')) || [];
+    const users = getLocalUsers();
     const dbUser = users.find(u => u.id === currentUser?.id);
     const storedPw = dbUser ? dbUser.password : (currentUser?.id === 'admin' ? '1234' : '');
 
     if (deletePwInput === storedPw) {
       // Success: Delete account
       try {
-        const updatedUsers = users.filter(u => u.id !== currentUser?.id);
-        localStorage.setItem('registered_users', JSON.stringify(updatedUsers));
+        await deleteRemoteUser(currentUser?.id);
         alert(t('delete_success'));
         logoutUser();
         navigate('/login');
