@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaPen, FaFileAlt } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { getLocalPosts, saveLocalPosts, saveRemotePosts } from '../../services/communitySync';
 
 const CATEGORIES = ['전기공사', '배관공사', '일반공학', '질문/답변'];
 
@@ -31,9 +32,14 @@ const CommunityWriteScreen = () => {
     };
 
     try {
-      const existing = JSON.parse(localStorage.getItem('custom_posts')) || [];
+      const existing = getLocalPosts();
       const updated = [newPost, ...existing];
-      localStorage.setItem('custom_posts', JSON.stringify(updated));
+      saveLocalPosts(updated);
+      
+      saveRemotePosts(updated).catch(err => {
+        console.warn("Deferred Firebase upload for new post:", err);
+      });
+
       navigate('/community');
     } catch (err) {
       console.error(err);

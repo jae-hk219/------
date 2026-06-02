@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaThumbsUp, FaThumbsDown, FaPaperPlane, FaUserCircle, FaRegCommentDots } from 'react-icons/fa';
+import { FaChevronLeft, FaThumbsUp, FaThumbsDown, FaPaperPlane, FaUserCircle, FaRegCommentDots, FaSync } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { getLocalPosts, syncPosts, getLocalComments, saveLocalComments, saveRemoteComments, syncComments } from '../../services/communitySync';
 
 const PostDetailScreen = () => {
   const { id } = useParams();
@@ -11,6 +12,7 @@ const PostDetailScreen = () => {
   const [post, setPost] = useState(null);
   const [comments, setComments] = useState([]);
   const [newComment, setNewComment] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   // Clicks for like / dislike toggle mechanism
   const [likeClicks, setLikeClicks] = useState(0);
@@ -18,19 +20,37 @@ const PostDetailScreen = () => {
 
   // Load post and comments dynamically
   useEffect(() => {
+    loadPostAndComments();
+  }, [id]);
+
+  const loadPostAndComments = async () => {
     try {
-      const posts = JSON.parse(localStorage.getItem('custom_posts')) || [];
+      const posts = getLocalPosts();
       const matched = posts.find(p => p.id === parseInt(id));
       if (matched) {
         setPost(matched);
       }
-
-      const storedComments = JSON.parse(localStorage.getItem(`post_comments_${id}`)) || [];
-      setComments(storedComments);
+      setComments(getLocalComments(id));
     } catch (err) {
       console.error(err);
     }
-  }, [id]);
+
+    setIsSyncing(true);
+    try {
+      const syncedPosts = await syncPosts();
+      const matched = syncedPosts.find(p => p.id === parseInt(id));
+      if (matched) {
+        setPost(matched);
+      }
+
+      const syncedComments = await syncComments(id);
+      setComments(syncedComments);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   if (!post) {
     return (
@@ -66,9 +86,13 @@ const PostDetailScreen = () => {
 
     const updatedComments = [...comments, commentItem];
     try {
-      localStorage.setItem(`post_comments_${id}`, JSON.stringify(updatedComments));
+      saveLocalComments(id, updatedComments);
       setComments(updatedComments);
       setNewComment('');
+
+      saveRemoteComments(id, updatedComments).catch(err => {
+        console.warn("Deferred Firebase upload for new comment:", err);
+      });
     } catch (err) {
       console.error(err);
     }
@@ -146,6 +170,9 @@ const PostDetailScreen = () => {
             <FaRegCommentDots size={14} className="text-blue-500" />
             <span>댓글 의견 공유</span>
             <span className="text-blue-500 font-extrabold">({comments.length})</span>
+            {isSyncing && (
+              <FaSync className="text-blue-500 animate-spin" size={10} title="동기화 중..." />
+            )}
           </h3>
 
           {/* Comment List */}

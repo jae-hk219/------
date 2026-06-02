@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaSearch, FaEllipsisV, FaPen, FaCommentAlt, FaEyeSlash } from 'react-icons/fa';
+import { FaChevronLeft, FaSearch, FaEllipsisV, FaPen, FaCommentAlt, FaEyeSlash, FaSync } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { getLocalPosts, syncPosts } from '../../services/communitySync';
 
 // Empty post database as requested: "지금 떠 있는 글들은 다 삭제하고 아무것도 없는 상태로 만들 것."
 export const MOCK_POSTS = [];
@@ -12,26 +13,46 @@ const CommunityScreen = () => {
   const navigate = useNavigate();
   const { notificationsEnabled, currentUser, t, isDarkMode } = useAppContext();
   const [activeCategory, setActiveCategory] = useState('전체');
+  const [posts, setPosts] = useState([]);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  // Load and sync posts
+  useEffect(() => {
+    loadPosts();
+  }, []);
+
+  const loadPosts = async () => {
+    try {
+      setPosts(getLocalPosts());
+    } catch (e) {
+      console.error(e);
+    }
+
+    setIsSyncing(true);
+    try {
+      const synced = await syncPosts();
+      setPosts(synced);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   // Filter posts based on category and notification setting
   const getVisiblePosts = () => {
-    let posts = [];
-    try {
-      posts = JSON.parse(localStorage.getItem('custom_posts')) || [];
-    } catch {
-      posts = [];
-    }
+    let list = [...posts];
 
     if (!notificationsEnabled) {
       // If notification setting is "끄기", block posts from other users
-      posts = posts.filter(post => post.author === currentUser?.nickname || post.userId === currentUser?.id);
+      list = list.filter(post => post.author === currentUser?.nickname || post.userId === currentUser?.id);
     }
 
     if (activeCategory !== '전체') {
-      posts = posts.filter(post => post.category === activeCategory);
+      list = list.filter(post => post.category === activeCategory);
     }
 
-    return posts;
+    return list;
   };
 
   const visiblePosts = getVisiblePosts();
@@ -53,7 +74,12 @@ const CommunityScreen = () => {
           </button>
           <div>
             <span className="text-[10px] text-gray-500">{t('community_sub')}</span>
-            <h1 className="text-base font-extrabold leading-tight">{t('community_title')}</h1>
+            <h1 className="text-base font-extrabold leading-tight flex items-center gap-1.5">
+              <span>{t('community_title')}</span>
+              {isSyncing && (
+                <FaSync className="text-blue-500 animate-spin" size={11} title="동기화 중..." />
+              )}
+            </h1>
           </div>
         </div>
         <div className="flex space-x-4 text-gray-400">
