@@ -37,9 +37,9 @@ export const performCalculation = async (calcId, inputs, localFormula) => {
  * @param {string} query - The user's prompt
  * @param {string} apiKey - Gemini API Key (required)
  * @param {string} category - Current active category for system prompt tailoring
- * @param {string} model - Gemini model identifier (default: gemini-3.5-flash)
+ * @param {string} model - Gemini model identifier (default: gemini-3.1-flash-lite)
  */
-export const askAI = async (query, apiKey, category = 'all', model = 'gemini-3.5-flash') => {
+export const askAI = async (query, apiKey, category = 'all', model = 'gemini-3.1-flash-lite') => {
   if (!apiKey) {
     throw new Error("Gemini API Key가 설정되지 않았습니다. 상단에서 API Key를 입력해 주세요.");
   }

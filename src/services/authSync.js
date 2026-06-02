@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const KVDB_URL = 'https://kvdb.io/hj_fieldlink_v2_9f8s2j1k/registered_users';
+const KVDB_URL = '/api/users';
 
 /**
  * Helper to get local registered users

@@ -34,11 +34,7 @@ const SUGGESTIONS = {
 };
 
 const GEMINI_MODELS = [
-  { id: 'gemini-3.5-flash', name: 'Gemini 3.5 Flash (최신/추천)' },
-  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite (부하 낮음/속도 최상 ⚡)' },
-  { id: 'gemini-3-flash', name: 'Gemini 3 Flash (표준)' },
-  { id: 'gemini-1.5-flash', name: 'Gemini 1.5 Flash (구버전)' },
-  { id: 'gemini-3.1-pro', name: 'Gemini 3.1 Pro (고성능 추론)' }
+  { id: 'gemini-3.1-flash-lite', name: 'Gemini 3.1 Flash Lite (부하 낮음/속도 최상 ⚡)' }
 ];
 
 const AIChatScreen = () => {
@@ -61,7 +57,7 @@ const AIChatScreen = () => {
   const [showKeyManager, setShowKeyManager] = useState(false);
   
   // Model Select State
-  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('gemini_model') || 'gemini-3.5-flash');
+  const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('gemini_model') || 'gemini-3.1-flash-lite');
   
   const messagesEndRef = useRef(null);
 
@@ -141,16 +137,14 @@ const AIChatScreen = () => {
       }]);
     } catch (error) {
       let friendlyError = error.message;
-      if (error.message.includes('not found for API version')) {
-        friendlyError = `${selectedModel} 모델이 지원되지 않거나 현재 API 버전에서 활성화되지 않았습니다. 상단의 모델 설정에서 'Gemini 3.5 Flash' 또는 다른 모델로 변경해 보세요.`;
-      } else if (
+      if (
         error.message.includes('high demand') ||
         error.message.includes('ResourceExhausted') ||
         error.message.includes('quota') ||
         error.message.includes('429') ||
         error.message.includes('503')
       ) {
-        friendlyError = `현재 ${selectedModel} 모델에 일시적으로 구글 서버 트래픽 부하가 몰려 응답이 제한되었습니다(또는 무료 API Key 할당량 초과). \n\n💡 해결 방법:\n1. 화면 오른쪽 상단의 ⚙️ 설정을 클릭해 서버 부하가 가장 적고 빠른 'Gemini 3.1 Flash Lite (부하 낮음/속도 최상 ⚡)' 모델로 변경해 보세요! 대화가 즉시 재개됩니다.\n2. 잠시 후(3~5초 후) 다시 질문을 보내주셔도 정상 작동합니다.`;
+        friendlyError = `현재 Gemini 3.1 Flash Lite 모델에 일시적으로 구글 서버 트래픽 부하가 몰려 응답이 제한되었습니다(또는 무료 API Key 할당량 초과). 잠시 후(3~5초 후) 다시 질문을 보내주시면 정상 작동합니다.`;
       }
       setMessages(prev => [...prev, {
         id: (Date.now() + 1).toString(),
