@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaChevronLeft, FaSearch, FaEllipsisV, FaPen, FaCommentAlt, FaEyeSlash, FaSync, FaUserCircle, FaTimes } from 'react-icons/fa';
+import { FaChevronLeft, FaSearch, FaEllipsisV, FaPen, FaCommentAlt, FaEyeSlash, FaSync, FaUserCircle, FaTimes, FaThumbsUp } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
 import { getLocalPosts, syncPosts } from '../../services/communitySync';
 import { getLocalUsers } from '../../services/authSync';
@@ -188,18 +188,26 @@ const CommunityScreen = () => {
                   })()}
                   <span className="font-bold">{post.author}</span>
                 </button>
-                <div className="flex items-center gap-1 bg-zinc-500/10 px-2.5 py-1 rounded-full">
-                  <FaCommentAlt size={10} className="text-blue-500" />
-                  <span className="font-semibold text-blue-500">
-                    {(() => {
-                      try {
-                        const comments = JSON.parse(localStorage.getItem(`post_comments_${post.id}`)) || [];
-                        return comments.length;
-                      } catch {
-                        return 0;
-                      }
-                    })()}
-                  </span>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1 bg-zinc-500/10 px-2.5 py-1 rounded-full">
+                    <FaThumbsUp size={10} className="text-blue-500" />
+                    <span className="font-semibold text-blue-500">
+                      {post.likes || 0}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-zinc-500/10 px-2.5 py-1 rounded-full">
+                    <FaCommentAlt size={10} className="text-blue-500" />
+                    <span className="font-semibold text-blue-500">
+                      {(() => {
+                        try {
+                          const comments = JSON.parse(localStorage.getItem(`post_comments_${post.id}`)) || [];
+                          return comments.length;
+                        } catch {
+                          return 0;
+                        }
+                      })()}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

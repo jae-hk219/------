@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaRobot, FaUser, FaLink, FaEdit, FaTimes, FaThumbsUp } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
+import { syncPosts } from '../../services/communitySync';
 
 // Initial Seed News/Events data
 const DEFAULT_NEWS = [
@@ -45,28 +46,40 @@ const HomeScreen = () => {
 
   // Load popular posts & news events
   useEffect(() => {
-    // 1. Fetch & Sort custom community posts
-    try {
-      const posts = JSON.parse(localStorage.getItem('custom_posts')) || [];
-      // Sort descending by likes
-      const sorted = [...posts].sort((a, b) => (b.likes || 0) - (a.likes || 0));
-      setPopularPosts(sorted);
-    } catch {
-      setPopularPosts([]);
-    }
+    const loadPopularAndNews = async () => {
+      // 1. Fetch & Sort custom community posts locally first
+      try {
+        const posts = JSON.parse(localStorage.getItem('custom_posts')) || [];
+        const sorted = [...posts].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+        setPopularPosts(sorted);
+      } catch {
+        setPopularPosts([]);
+      }
 
-    // 2. Fetch or seed news events
-    try {
-      const storedNews = localStorage.getItem('home_news_events');
-      if (storedNews) {
-        setNewsEvents(JSON.parse(storedNews));
-      } else {
-        localStorage.setItem('home_news_events', JSON.stringify(DEFAULT_NEWS));
+      // Sync posts from remote database to get latest likes/posts
+      try {
+        const synced = await syncPosts();
+        const sorted = [...synced].sort((a, b) => (b.likes || 0) - (a.likes || 0));
+        setPopularPosts(sorted);
+      } catch (e) {
+        console.warn("Home screen post sync failed:", e);
+      }
+
+      // 2. Fetch or seed news events
+      try {
+        const storedNews = localStorage.getItem('home_news_events');
+        if (storedNews) {
+          setNewsEvents(JSON.parse(storedNews));
+        } else {
+          localStorage.setItem('home_news_events', JSON.stringify(DEFAULT_NEWS));
+          setNewsEvents(DEFAULT_NEWS);
+        }
+      } catch {
         setNewsEvents(DEFAULT_NEWS);
       }
-    } catch {
-      setNewsEvents(DEFAULT_NEWS);
-    }
+    };
+    
+    loadPopularAndNews();
   }, []);
 
   // Handle News Update Submission

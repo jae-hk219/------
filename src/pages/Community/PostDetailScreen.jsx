@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FaChevronLeft, FaThumbsUp, FaThumbsDown, FaPaperPlane, FaUserCircle, FaRegCommentDots, FaSync, FaTimes } from 'react-icons/fa';
 import { useAppContext } from '../../context/AppContext';
-import { getLocalPosts, syncPosts, getLocalComments, saveLocalComments, saveRemoteComments, syncComments } from '../../services/communitySync';
+import { getLocalPosts, saveLocalPosts, saveRemotePosts, syncPosts, getLocalComments, saveLocalComments, saveRemoteComments, syncComments } from '../../services/communitySync';
 import { getLocalUsers } from '../../services/authSync';
 
 const PostDetailScreen = () => {
@@ -17,14 +17,23 @@ const PostDetailScreen = () => {
   const [registeredUsers, setRegisteredUsers] = useState([]);
   const [selectedAuthor, setSelectedAuthor] = useState(null);
 
-  // Clicks for like / dislike toggle mechanism
-  const [likeClicks, setLikeClicks] = useState(0);
-  const [dislikeClicks, setDislikeClicks] = useState(0);
+  const [likedList, setLikedList] = useState([]);
+  const [dislikedList, setDislikedList] = useState([]);
 
   // Load post and comments dynamically
   useEffect(() => {
     loadPostAndComments();
   }, [id]);
+
+  useEffect(() => {
+    const userId = currentUser?.id || 'guest';
+    try {
+      setLikedList(JSON.parse(localStorage.getItem(`liked_posts_${userId}`)) || []);
+      setDislikedList(JSON.parse(localStorage.getItem(`disliked_posts_${userId}`)) || []);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [currentUser]);
 
   const loadPostAndComments = async () => {
     try {
@@ -56,6 +65,104 @@ const PostDetailScreen = () => {
     }
   };
 
+  const handleLikeToggle = async () => {
+    const userId = currentUser?.id || 'guest';
+    const likedKey = `liked_posts_${userId}`;
+    const dislikedKey = `disliked_posts_${userId}`;
+
+    const posts = getLocalPosts();
+    const postIndex = posts.findIndex(p => p.id === post.id);
+    if (postIndex === -1) return;
+
+    const targetPost = { ...posts[postIndex] };
+    if (!targetPost.likes) targetPost.likes = 0;
+    if (!targetPost.dislikes) targetPost.dislikes = 0;
+
+    let updatedLikedPosts = [...likedList];
+    let updatedDislikedPosts = [...dislikedList];
+
+    const alreadyLiked = likedList.includes(post.id);
+    const alreadyDisliked = dislikedList.includes(post.id);
+
+    if (alreadyLiked) {
+      targetPost.likes = Math.max(0, targetPost.likes - 1);
+      updatedLikedPosts = updatedLikedPosts.filter(id => id !== post.id);
+    } else {
+      targetPost.likes += 1;
+      updatedLikedPosts.push(post.id);
+
+      if (alreadyDisliked) {
+        targetPost.dislikes = Math.max(0, targetPost.dislikes - 1);
+        updatedDislikedPosts = updatedDislikedPosts.filter(id => id !== post.id);
+      }
+    }
+
+    posts[postIndex] = targetPost;
+
+    saveLocalPosts(posts);
+    localStorage.setItem(likedKey, JSON.stringify(updatedLikedPosts));
+    localStorage.setItem(dislikedKey, JSON.stringify(updatedDislikedPosts));
+
+    setPost(targetPost);
+    setLikedList(updatedLikedPosts);
+    setDislikedList(updatedDislikedPosts);
+
+    try {
+      await saveRemotePosts(posts);
+    } catch (e) {
+      console.warn("Failed to sync likes to remote database", e);
+    }
+  };
+
+  const handleDislikeToggle = async () => {
+    const userId = currentUser?.id || 'guest';
+    const likedKey = `liked_posts_${userId}`;
+    const dislikedKey = `disliked_posts_${userId}`;
+
+    const posts = getLocalPosts();
+    const postIndex = posts.findIndex(p => p.id === post.id);
+    if (postIndex === -1) return;
+
+    const targetPost = { ...posts[postIndex] };
+    if (!targetPost.likes) targetPost.likes = 0;
+    if (!targetPost.dislikes) targetPost.dislikes = 0;
+
+    let updatedLikedPosts = [...likedList];
+    let updatedDislikedPosts = [...dislikedList];
+
+    const alreadyLiked = likedList.includes(post.id);
+    const alreadyDisliked = dislikedList.includes(post.id);
+
+    if (alreadyDisliked) {
+      targetPost.dislikes = Math.max(0, targetPost.dislikes - 1);
+      updatedDislikedPosts = updatedDislikedPosts.filter(id => id !== post.id);
+    } else {
+      targetPost.dislikes += 1;
+      updatedDislikedPosts.push(post.id);
+
+      if (alreadyLiked) {
+        targetPost.likes = Math.max(0, targetPost.likes - 1);
+        updatedLikedPosts = updatedLikedPosts.filter(id => id !== post.id);
+      }
+    }
+
+    posts[postIndex] = targetPost;
+
+    saveLocalPosts(posts);
+    localStorage.setItem(likedKey, JSON.stringify(updatedLikedPosts));
+    localStorage.setItem(dislikedKey, JSON.stringify(updatedDislikedPosts));
+
+    setPost(targetPost);
+    setLikedList(updatedLikedPosts);
+    setDislikedList(updatedDislikedPosts);
+
+    try {
+      await saveRemotePosts(posts);
+    } catch (e) {
+      console.warn("Failed to sync dislikes to remote database", e);
+    }
+  };
+
   if (!post) {
     return (
       <div className={`p-8 text-center min-h-screen ${isDarkMode ? 'bg-black text-zinc-500' : 'bg-white text-gray-500'}`}>
@@ -64,11 +171,8 @@ const PostDetailScreen = () => {
     );
   }
 
-  // Toggle offset logic: odd click = +1, even click = +0
-  const getLikeOffset = (clicks) => clicks % 2 !== 0 ? 1 : 0;
-  
-  const currentLikes = (post.likes || 0) + getLikeOffset(likeClicks);
-  const currentDislikes = (post.dislikes || 0) + getLikeOffset(dislikeClicks);
+  const isLiked = likedList.includes(post.id);
+  const isDisliked = dislikedList.includes(post.id);
 
   // Handle Comment Submission
   const handleCommentSubmit = (e) => {
@@ -170,27 +274,27 @@ const PostDetailScreen = () => {
         {/* Action Buttons (Like / Dislike) */}
         <div className="flex justify-center items-center py-8 gap-4">
           <button 
-            onClick={() => setLikeClicks(prev => prev + 1)}
+            onClick={handleLikeToggle}
             className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl border transition-all cursor-pointer ${
-              likeClicks % 2 !== 0 
+              isLiked 
                 ? 'bg-blue-500/10 border-blue-500 text-blue-500 shadow-md scale-95' 
                 : (isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700' : 'bg-white border-gray-200 text-gray-450 hover:border-gray-300')
             }`}
           >
             <FaThumbsUp size={16} className="mb-1" />
-            <span className="text-[10px] font-extrabold">{currentLikes}</span>
+            <span className="text-[10px] font-extrabold">{post.likes || 0}</span>
           </button>
 
           <button 
-            onClick={() => setDislikeClicks(prev => prev + 1)}
+            onClick={handleDislikeToggle}
             className={`flex flex-col items-center justify-center w-16 h-16 rounded-2xl border transition-all cursor-pointer ${
-              dislikeClicks % 2 !== 0 
+              isDisliked 
                 ? 'bg-red-500/10 border-red-500 text-red-500 shadow-md scale-95' 
                 : (isDarkMode ? 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:border-zinc-700' : 'bg-white border-gray-200 text-gray-450 hover:border-gray-300')
             }`}
           >
             <FaThumbsDown size={16} className="mb-1" />
-            <span className="text-[10px] font-extrabold">{currentDislikes}</span>
+            <span className="text-[10px] font-extrabold">{post.dislikes || 0}</span>
           </button>
         </div>
 
