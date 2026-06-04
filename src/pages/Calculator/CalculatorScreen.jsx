@@ -194,6 +194,7 @@ const CalculatorScreen = () => {
   const [errorMsg, setErrorMsg] = useState('');
   const [isCalculating, setIsCalculating] = useState(false);
   const [viewCount, setViewCount] = useState(0);
+  const [cameFromHistory, setCameFromHistory] = useState(false);
 
   // Handle Location State (Recovery and populating from History)
   useEffect(() => {
@@ -214,6 +215,7 @@ const CalculatorScreen = () => {
           // Increment and set view count
           const newCount = incrementViewCount(cid);
           setViewCount(newCount);
+          setCameFromHistory(true);
         }
       }
     }
@@ -231,10 +233,8 @@ const CalculatorScreen = () => {
     setInputValues(getDefaultsForCalc(calc.id));
     setResult(null);
     setErrorMsg('');
-
-    // Increment and set view count
-    const newCount = incrementViewCount(calc.id);
-    setViewCount(newCount);
+    setViewCount(0);
+    setCameFromHistory(false);
   };
 
   const handleBack = () => {
@@ -515,7 +515,7 @@ const CalculatorScreen = () => {
         }`}>
           
           {/* View Count Tooltip Speech Bubble */}
-          {viewCount >= 3 && (
+          {cameFromHistory && viewCount >= 3 && (
             <div className="relative mb-3 flex animate-pulse">
               <div className={`px-3 py-2 rounded-2xl text-[10px] font-extrabold shadow-sm border flex items-center gap-1.5 relative shrink-0 ${
                 isDarkMode 
