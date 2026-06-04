@@ -5,6 +5,113 @@ import { performCalculation } from '../../services/api';
 import { useAppContext } from '../../context/AppContext';
 import { getLocalRecords, saveLocalRecords, saveRemoteRecords } from '../../services/recordSync';
 
+const PIPE_SPECS = {
+  'DIN2448': {
+    '15A': { od: 21.3, t: 2.0 },
+    '20A': { od: 26.9, t: 2.3 },
+    '25A': { od: 33.7, t: 2.6 },
+    '32A': { od: 42.4, t: 2.6 },
+    '40A': { od: 48.3, t: 2.6 },
+    '50A': { od: 60.3, t: 2.9 },
+    '65A': { od: 76.1, t: 2.9 },
+    '80A': { od: 88.9, t: 3.2 },
+    '100A': { od: 114.3, t: 3.6 },
+    '125A': { od: 139.7, t: 4.0 },
+    '150A': { od: 168.3, t: 4.5 }
+  },
+  'ANSI Sch160': {
+    '15A': { od: 21.3, t: 4.78 },
+    '20A': { od: 26.7, t: 5.56 },
+    '25A': { od: 33.4, t: 6.35 },
+    '32A': { od: 42.2, t: 6.35 },
+    '40A': { od: 48.3, t: 7.14 },
+    '50A': { od: 60.3, t: 8.74 },
+    '65A': { od: 73.0, t: 9.53 },
+    '80A': { od: 88.9, t: 11.13 },
+    '100A': { od: 114.3, t: 13.49 },
+    '125A': { od: 139.8, t: 15.88 },
+    '150A': { od: 168.3, t: 18.26 }
+  },
+  'ANSI Sch80': {
+    '15A': { od: 21.3, t: 3.73 },
+    '20A': { od: 26.7, t: 3.91 },
+    '25A': { od: 33.4, t: 4.55 },
+    '32A': { od: 42.2, t: 4.85 },
+    '40A': { od: 48.3, t: 5.08 },
+    '50A': { od: 60.3, t: 5.54 },
+    '65A': { od: 73.0, t: 7.01 },
+    '80A': { od: 88.9, t: 7.62 },
+    '100A': { od: 114.3, t: 8.56 },
+    '125A': { od: 139.8, t: 9.53 },
+    '150A': { od: 168.3, t: 10.97 }
+  },
+  'ANSI Sch40': {
+    '15A': { od: 21.3, t: 2.77 },
+    '20A': { od: 26.7, t: 2.87 },
+    '25A': { od: 33.4, t: 3.38 },
+    '32A': { od: 42.2, t: 3.56 },
+    '40A': { od: 48.3, t: 3.68 },
+    '50A': { od: 60.3, t: 3.91 },
+    '65A': { od: 73.0, t: 5.16 },
+    '80A': { od: 88.9, t: 5.49 },
+    '100A': { od: 114.3, t: 6.02 },
+    '125A': { od: 139.8, t: 6.55 },
+    '150A': { od: 168.3, t: 7.11 }
+  },
+  'JIS-STPG Sch80': {
+    '15A': { od: 21.7, t: 3.7 },
+    '20A': { od: 27.2, t: 3.9 },
+    '25A': { od: 34.0, t: 4.5 },
+    '32A': { od: 42.7, t: 4.9 },
+    '40A': { od: 48.6, t: 5.1 },
+    '50A': { od: 60.5, t: 5.5 },
+    '65A': { od: 76.3, t: 7.0 },
+    '80A': { od: 89.1, t: 7.6 },
+    '100A': { od: 114.3, t: 8.6 },
+    '125A': { od: 139.8, t: 9.5 },
+    '150A': { od: 165.2, t: 11.0 }
+  },
+  'JIS-STPG Sch60': {
+    '15A': { od: 21.7, t: 3.2 },
+    '20A': { od: 27.2, t: 3.4 },
+    '25A': { od: 34.0, t: 3.9 },
+    '32A': { od: 42.7, t: 4.5 },
+    '40A': { od: 48.6, t: 4.5 },
+    '50A': { od: 60.5, t: 4.9 },
+    '65A': { od: 76.3, t: 6.0 },
+    '80A': { od: 89.1, t: 6.6 },
+    '100A': { od: 114.3, t: 7.9 },
+    '125A': { od: 139.8, t: 9.0 },
+    '150A': { od: 165.2, t: 9.7 }
+  },
+  'JIS-STPG Sch40': {
+    '15A': { od: 21.7, t: 2.8 },
+    '20A': { od: 27.2, t: 2.9 },
+    '25A': { od: 34.0, t: 3.4 },
+    '32A': { od: 42.7, t: 3.6 },
+    '40A': { od: 48.6, t: 3.7 },
+    '50A': { od: 60.5, t: 3.9 },
+    '65A': { od: 76.3, t: 5.2 },
+    '80A': { od: 89.1, t: 5.5 },
+    '100A': { od: 114.3, t: 6.0 },
+    '125A': { od: 139.8, t: 6.6 },
+    '150A': { od: 165.2, t: 7.1 }
+  },
+  'JIS-SGP': {
+    '15A': { od: 21.7, t: 2.8 },
+    '20A': { od: 27.2, t: 2.8 },
+    '25A': { od: 34.0, t: 3.2 },
+    '32A': { od: 42.7, t: 3.5 },
+    '40A': { od: 48.6, t: 3.5 },
+    '50A': { od: 60.5, t: 3.8 },
+    '65A': { od: 76.3, t: 4.2 },
+    '80A': { od: 89.1, t: 4.2 },
+    '100A': { od: 114.3, t: 4.5 },
+    '125A': { od: 139.8, t: 4.5 },
+    '150A': { od: 165.2, t: 5.0 }
+  }
+};
+
 const CALCULATOR_DATA = {
   electric: {
     title: '전기공사 계산기',
@@ -12,9 +119,9 @@ const CALCULATOR_DATA = {
     icon: <FaBolt size={40} className="text-zinc-650" />,
     color: 'bg-yellow-500',
     list: [
-      { id: 'e1', name: '허용전류 및 전선 단면적 선정', iconText: 'I', inputs: ['전압 (V)', '전류 (A)', '길이 (m)'], formula: (vals) => `추천 전선 단면적: ${(vals[1] * 1.5).toFixed(2)} sq` },
-      { id: 'e2', name: '전압강하 계산', iconText: 'ΔV', inputs: ['전류 (A)', '저항 (Ω)'], formula: (vals) => `전압 강하: ${(vals[0] * vals[1]).toFixed(2)} V` },
-      { id: 'e3', name: '전력 계산 (단상/3상)', iconText: 'W', inputs: ['전압 (V)', '전류 (A)', '역률'], formula: (vals) => `유효 전력: ${(vals[0] * vals[1] * vals[2]).toFixed(2)} W` },
+      { id: 'e1', name: '허용전류 계산', iconText: 'I', inputs: ['전선 단면적 (mm²)', '주변 온도 (°C)', '복선 수 (회로 수)'], formula: () => '' },
+      { id: 'e2', name: '전압강하 계산', iconText: 'ΔV', inputs: ['배전 방식', '전류 (A)', '선로 길이 (m)', '전선 단면적 (mm²)', '선로 전압 (V)'], formula: () => '' },
+      { id: 'e3', name: '부하전력 계산', iconText: 'W', inputs: ['상 구분', '전압 (V)', '전류 (A)', '역률'], formula: () => '' },
     ]
   },
   plumbing: {
@@ -23,9 +130,9 @@ const CALCULATOR_DATA = {
     icon: <FaTint size={40} className="text-zinc-650" />,
     color: 'bg-blue-400',
     list: [
-      { id: 'p1', name: '배관 유량 및 유속 계산', iconText: 'Q', inputs: ['관경 (mm)', '유속 (m/s)'], formula: (vals) => `유량: ${(Math.PI * Math.pow(vals[0]/2000, 2) * vals[1] * 3600).toFixed(2)} m³/h` },
-      { id: 'p2', name: '배관 압력 손실 계산', iconText: 'ΔP', inputs: ['마찰계수', '길이 (m)'], formula: (vals) => `압력 손실: ${(vals[0] * vals[1]).toFixed(2)} bar` },
-      { id: 'p3', name: '펌프 양정 및 소요 동력 계산', iconText: 'HP', inputs: ['유량 (m³/h)', '전양정 (m)'], formula: (vals) => `소요 동력: ${(vals[0] * vals[1] / 367).toFixed(2)} kW` },
+      { id: 'p1', name: '배관 유량/유속', iconText: 'Q', inputs: ['배관 규격 모델', '배관 사이즈', '유속 (m/s)'], formula: () => '' },
+      { id: 'p2', name: '압력손실 계산', iconText: 'ΔP', inputs: ['배관 규격 모델', '배관 사이즈', '배관 길이 (m)', '유속 (m/s)', '마찰계수', '유체 밀도 (kg/m³)'], formula: () => '' },
+      { id: 'p3', name: '펌프 동력', iconText: 'HP', inputs: ['배관 규격 모델', '배관 사이즈', '유속 (m/s)', '양정 (m)', '펌프 효율 (%)', '유체 밀도 (kg/m³)'], formula: () => '' },
     ]
   },
   engineering: {
@@ -49,6 +156,16 @@ const CALCULATOR_DATA = {
       { id: 'm1', name: '수학 기초 (분수, 백분율, 비례식)', iconText: '%', inputs: ['전체 값', '부분 값'], formula: (vals) => `비율: ${(vals[1] / vals[0] * 100).toFixed(2)} %` },
     ]
   }
+};
+
+const getDefaultsForCalc = (calcId) => {
+  if (calcId === 'e1') return { 0: '2.5', 1: '30', 2: '1' };
+  if (calcId === 'e2') return { 0: '단상 2선식', 3: '2.5', 4: '220' };
+  if (calcId === 'e3') return { 0: '단상 (1-Phase)', 1: '220', 3: '0.9' };
+  if (calcId === 'p1') return { 0: 'DIN2448', 1: '50A', 2: '2.0' };
+  if (calcId === 'p2') return { 0: 'DIN2448', 1: '50A', 3: '2.0', 4: '0.02', 5: '1000' };
+  if (calcId === 'p3') return { 0: 'DIN2448', 1: '50A', 2: '2.0', 4: '75', 5: '1000' };
+  return {};
 };
 
 // Helpers to track view count
@@ -111,7 +228,7 @@ const CalculatorScreen = () => {
   const handleCalcSelect = (calc) => {
     setSelectedCalc(calc);
     setViewMode('detail');
-    setInputValues({});
+    setInputValues(getDefaultsForCalc(calc.id));
     setResult(null);
     setErrorMsg('');
 
@@ -130,51 +247,181 @@ const CalculatorScreen = () => {
   };
 
   const handleCalculate = async () => {
-    const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
-    if (vals.some(isNaN)) {
-      setErrorMsg('모든 현장 데이터를 올바르게 입력해 주세요');
-      setResult(null);
-    } else {
-      setErrorMsg('');
-      setIsCalculating(true);
-      try {
-        const apiResult = await performCalculation(selectedCalc.id, vals, selectedCalc.formula);
-        setResult(apiResult);
-
-        // Record history logs
-        try {
-          const userId = currentUser?.id || 'guest';
-          const records = getLocalRecords(userId);
-          const newRecord = {
-            id: Date.now() + Math.random().toString(36).substr(2, 9),
-            category: selectedCategory,
-            categoryName: CALCULATOR_DATA[selectedCategory]?.title || '',
-            calcId: selectedCalc.id,
-            calcName: selectedCalc.name,
-            inputs: selectedCalc.inputs,
-            inputValues: inputValues,
-            result: apiResult,
-            timestamp: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            memo: ''
-          };
-          records.unshift(newRecord);
-          saveLocalRecords(userId, records);
-          
-          if (userId !== 'guest') {
-            saveRemoteRecords(userId, records).catch(e => {
-              console.warn("Deferred Firebase sync for new record:", e);
-            });
-          }
-        } catch (err) {
-          console.error("Failed to write to calculation_records:", err);
+    setErrorMsg('');
+    setIsCalculating(true);
+    
+    try {
+      let finalResult = '';
+      
+      // Custom calculators validation & calculation
+      if (selectedCalc.id === 'e1') {
+        const area = inputValues[0] || '2.5';
+        const temp = parseFloat(inputValues[1]);
+        const circuits = parseFloat(inputValues[2]);
+        if (isNaN(temp) || isNaN(circuits)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
         }
-
-      } catch (e) {
-        setErrorMsg(e.message);
-      } finally {
-        setIsCalculating(false);
+        
+        const baseCurrents = {
+          '1.5': 18, '2.5': 24, '4': 32, '6': 41, '10': 57, '16': 76,
+          '25': 101, '35': 125, '50': 151, '70': 192, '95': 232, '120': 269
+        };
+        const I0 = baseCurrents[area] || 24;
+        const Ct = Math.max(0, Math.min(1, Math.sqrt((90 - temp) / 60)));
+        let Cg = 1.0;
+        if (circuits === 2) Cg = 0.8;
+        else if (circuits === 3) Cg = 0.7;
+        else if (circuits >= 4) Cg = 0.65;
+        
+        const I_allow = I0 * Ct * Cg;
+        finalResult = `허용 전류: ${I_allow.toFixed(2)} A (기준전류: ${I0}A, 온도 보정계수: ${Ct.toFixed(2)}, 다조포설 보정계수: ${Cg.toFixed(2)})`;
       }
+      else if (selectedCalc.id === 'e2') {
+        const sys = inputValues[0] || '단상 2선식';
+        const I = parseFloat(inputValues[1]);
+        const L = parseFloat(inputValues[2]);
+        const A = parseFloat(inputValues[3] || '2.5');
+        const V = parseFloat(inputValues[4]);
+        
+        if (isNaN(I) || isNaN(L) || isNaN(A) || isNaN(V)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        
+        let K = 35.6;
+        if (sys.includes('3상 3선')) K = 30.8;
+        else if (sys.includes('3상 4선')) K = 17.8;
+        
+        const e = K * (L * I) / (1000 * A);
+        const percent = (e / V) * 100;
+        finalResult = `전압 강하: ${e.toFixed(2)} V (${percent.toFixed(2)} %)`;
+      }
+      else if (selectedCalc.id === 'e3') {
+        const phase = inputValues[0] || '단상 (1-Phase)';
+        const V = parseFloat(inputValues[1]);
+        const I = parseFloat(inputValues[2]);
+        const PF = parseFloat(inputValues[3]);
+        
+        if (isNaN(V) || isNaN(I) || isNaN(PF)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        
+        let P = V * I * PF;
+        let S = V * I;
+        if (phase.includes('3상')) {
+          P = Math.sqrt(3) * V * I * PF;
+          S = Math.sqrt(3) * V * I;
+        }
+        
+        finalResult = `유효 전력: ${(P/1000).toFixed(2)} kW (${P.toFixed(0)} W), 피상 전력: ${(S/1000).toFixed(2)} kVA (${S.toFixed(0)} VA)`;
+      }
+      else if (selectedCalc.id === 'p1') {
+        const model = inputValues[0] || 'DIN2448';
+        const size = inputValues[1] || '50A';
+        const V = parseFloat(inputValues[2]);
+        
+        if (isNaN(V)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        
+        const spec = PIPE_SPECS[model]?.[size] || { od: 60.3, t: 2.9 };
+        const id = spec.od - 2 * spec.t;
+        const area = Math.PI * Math.pow(id / 2000, 2);
+        
+        const Q_m3s = area * V;
+        const Q_m3h = Q_m3s * 3600;
+        
+        finalResult = `유량: ${Q_m3h.toFixed(2)} m³/h (${Q_m3s.toFixed(5)} m³/s) [배관 내경: ${id.toFixed(1)} mm, 단면적: ${(area * 10000).toFixed(2)} cm²]`;
+      }
+      else if (selectedCalc.id === 'p2') {
+        const model = inputValues[0] || 'DIN2448';
+        const size = inputValues[1] || '50A';
+        const L = parseFloat(inputValues[2]);
+        const V = parseFloat(inputValues[3]);
+        const f = parseFloat(inputValues[4] || '0.02');
+        const rho = parseFloat(inputValues[5] || '1000');
+        
+        if (isNaN(L) || isNaN(V) || isNaN(f) || isNaN(rho)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        
+        const spec = PIPE_SPECS[model]?.[size] || { od: 60.3, t: 2.9 };
+        const id = spec.od - 2 * spec.t;
+        const D = id / 1000;
+        
+        const hf = f * (L / D) * (Math.pow(V, 2) / (2 * 9.81));
+        const deltaP_pa = rho * 9.81 * hf;
+        const deltaP_bar = deltaP_pa / 100000;
+        const deltaP_kpa = deltaP_pa / 1000;
+        
+        finalResult = `압력 손실: ${deltaP_bar.toFixed(3)} bar (${deltaP_kpa.toFixed(1)} kPa) [수두 손실: ${hf.toFixed(2)} m, 배관 내경: ${id.toFixed(1)} mm]`;
+      }
+      else if (selectedCalc.id === 'p3') {
+        const model = inputValues[0] || 'DIN2448';
+        const size = inputValues[1] || '50A';
+        const V = parseFloat(inputValues[2]);
+        const H = parseFloat(inputValues[3]);
+        const eta = parseFloat(inputValues[4] || '75') / 100;
+        const rho = parseFloat(inputValues[5] || '1000');
+        
+        if (isNaN(V) || isNaN(H) || isNaN(eta) || isNaN(rho)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        
+        const spec = PIPE_SPECS[model]?.[size] || { od: 60.3, t: 2.9 };
+        const id = spec.od - 2 * spec.t;
+        const area = Math.PI * Math.pow(id / 2000, 2);
+        const Q_m3s = area * V;
+        
+        const P_w = (rho * 9.81 * Q_m3s * H) / eta;
+        const P_kw = P_w / 1000;
+        
+        finalResult = `펌프 동력: ${P_kw.toFixed(2)} kW (${(P_kw * 1.341).toFixed(2)} HP) [계산 유량: ${(Q_m3s * 3600).toFixed(2)} m³/h, 배관 내경: ${id.toFixed(1)} mm]`;
+      }
+      else {
+        // Fallback for default calculators
+        const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
+        if (vals.some(isNaN)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        finalResult = await performCalculation(selectedCalc.id, vals, selectedCalc.formula);
+      }
+
+      setResult(finalResult);
+
+      // Record history logs
+      try {
+        const userId = currentUser?.id || 'guest';
+        const records = getLocalRecords(userId);
+        const newRecord = {
+          id: Date.now() + Math.random().toString(36).substr(2, 9),
+          category: selectedCategory,
+          categoryName: CALCULATOR_DATA[selectedCategory]?.title || '',
+          calcId: selectedCalc.id,
+          calcName: selectedCalc.name,
+          inputs: selectedCalc.inputs,
+          inputValues: inputValues,
+          result: finalResult,
+          timestamp: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          memo: ''
+        };
+        records.unshift(newRecord);
+        saveLocalRecords(userId, records);
+        
+        if (userId !== 'guest') {
+          saveRemoteRecords(userId, records).catch(e => {
+            console.warn("Deferred Firebase sync for new record:", e);
+          });
+        }
+      } catch (err) {
+        console.error("Failed to write to calculation_records:", err);
+      }
+
+    } catch (e) {
+      setErrorMsg(e.message);
+      setResult(null);
+    } finally {
+      setIsCalculating(false);
     }
   };
 
@@ -291,24 +538,130 @@ const CalculatorScreen = () => {
               isDarkMode ? 'border-zinc-800 text-zinc-300' : 'border-gray-100 text-gray-800'
             }`}>수식 입력</h2>
             
-            {selectedCalc.inputs.map((label, idx) => (
-              <div key={idx} className="mb-4">
-                <label className={`block text-[11px] font-bold mb-1.5 ${
-                  isDarkMode ? 'text-zinc-450' : 'text-gray-600'
-                }`}>{label}</label>
-                <input 
-                  type="number"
-                  value={inputValues[idx] || ''}
-                  onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
-                  placeholder="숫자 입력"
-                  className={`w-full text-xs font-semibold rounded-xl px-4 py-3 border outline-none transition-colors ${
-                    isDarkMode 
-                      ? 'bg-zinc-950 border-zinc-800 text-white focus:border-zinc-700' 
-                      : 'bg-zinc-50 border-zinc-200 text-gray-900 focus:border-blue-500'
-                  }`}
-                />
-              </div>
-            ))}
+            {selectedCalc.inputs.map((label, idx) => {
+              const isDarkTheme = isDarkMode;
+              const inputClass = `w-full text-xs font-semibold rounded-xl px-4 py-3 border outline-none transition-colors ${
+                isDarkTheme 
+                  ? 'bg-zinc-950 border-zinc-800 text-white focus:border-zinc-700' 
+                  : 'bg-white border-zinc-200 text-gray-900 focus:border-blue-500'
+              }`;
+
+              // 1. Wire size dropdown for e1 (index 0) and e2 (index 3)
+              if ((selectedCalc.id === 'e1' && idx === 0) || (selectedCalc.id === 'e2' && idx === 3)) {
+                return (
+                  <div key={idx} className="mb-4">
+                    <label className={`block text-[11px] font-bold mb-1.5 ${isDarkTheme ? 'text-zinc-450' : 'text-gray-600'}`}>{label}</label>
+                    <select
+                      value={inputValues[idx] || '2.5'}
+                      onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
+                      className={inputClass}
+                      style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                    >
+                      {['1.5', '2.5', '4', '6', '10', '16', '25', '35', '50', '70', '95', '120'].map(sz => (
+                        <option key={sz} value={sz}>{sz} mm² (sq)</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              // 2. Wiring system for e2 (index 0)
+              if (selectedCalc.id === 'e2' && idx === 0) {
+                return (
+                  <div key={idx} className="mb-4">
+                    <label className={`block text-[11px] font-bold mb-1.5 ${isDarkTheme ? 'text-zinc-450' : 'text-gray-600'}`}>{label}</label>
+                    <select
+                      value={inputValues[idx] || '단상 2선식'}
+                      onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
+                      className={inputClass}
+                      style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                    >
+                      {['단상 2선식', '3상 3선식', '3상 4선식(상전압 기준)'].map(sys => (
+                        <option key={sys} value={sys}>{sys}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              // 3. Phase selection for e3 (index 0)
+              if (selectedCalc.id === 'e3' && idx === 0) {
+                return (
+                  <div key={idx} className="mb-4">
+                    <label className={`block text-[11px] font-bold mb-1.5 ${isDarkTheme ? 'text-zinc-450' : 'text-gray-600'}`}>{label}</label>
+                    <select
+                      value={inputValues[idx] || '단상 (1-Phase)'}
+                      onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
+                      className={inputClass}
+                      style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                    >
+                      {['단상 (1-Phase)', '3상 (3-Phase)'].map(phase => (
+                        <option key={phase} value={phase}>{phase}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              // 4. Pipe standard model for p1, p2, p3 (index 0)
+              if (['p1', 'p2', 'p3'].includes(selectedCalc.id) && idx === 0) {
+                return (
+                  <div key={idx} className="mb-4">
+                    <label className={`block text-[11px] font-bold mb-1.5 ${isDarkTheme ? 'text-zinc-450' : 'text-gray-600'}`}>{label}</label>
+                    <select
+                      value={inputValues[idx] || 'DIN2448'}
+                      onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
+                      className={inputClass}
+                      style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                    >
+                      {['DIN2448', 'ANSI Sch160', 'ANSI Sch80', 'ANSI Sch40', 'JIS-STPG Sch80', 'JIS-STPG Sch60', 'JIS-STPG Sch40', 'JIS-SGP'].map(model => (
+                        <option key={model} value={model}>{model}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              // 5. Pipe Size for p1, p2, p3 (index 1)
+              if (['p1', 'p2', 'p3'].includes(selectedCalc.id) && idx === 1) {
+                return (
+                  <div key={idx} className="mb-4">
+                    <label className={`block text-[11px] font-bold mb-1.5 ${isDarkTheme ? 'text-zinc-450' : 'text-gray-600'}`}>{label}</label>
+                    <select
+                      value={inputValues[idx] || '50A'}
+                      onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
+                      className={inputClass}
+                      style={{ colorScheme: isDarkTheme ? 'dark' : 'light' }}
+                    >
+                      {['15A', '20A', '25A', '32A', '40A', '50A', '65A', '80A', '100A', '125A', '150A'].map(sz => (
+                        <option key={sz} value={sz}>{sz}</option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              }
+
+              // Standard Numeric Input
+              return (
+                <div key={idx} className="mb-4">
+                  <label className={`block text-[11px] font-bold mb-1.5 ${
+                    isDarkTheme ? 'text-zinc-450' : 'text-gray-600'
+                  }`}>{label}</label>
+                  <input 
+                    type="number"
+                    step="any"
+                    value={inputValues[idx] ?? ''}
+                    onChange={(e) => setInputValues({...inputValues, [idx]: e.target.value})}
+                    placeholder="숫자 입력"
+                    className={`w-full text-xs font-semibold rounded-xl px-4 py-3 border outline-none transition-colors ${
+                      isDarkTheme 
+                        ? 'bg-zinc-950 border-zinc-800 text-white focus:border-zinc-700' 
+                        : 'bg-zinc-50 border-zinc-200 text-gray-900 focus:border-blue-500'
+                    }`}
+                  />
+                </div>
+              );
+            })}
 
             {errorMsg && (
               <p className="text-red-500 text-[10px] font-bold mb-4 bg-red-500/10 p-3 rounded-xl border border-red-500/20">{errorMsg}</p>
