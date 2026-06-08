@@ -151,6 +151,19 @@ const CALCULATOR_DATA = {
       { id: 'p1', name: '배관 유량/유속', iconText: 'Q', inputs: ['배관 규격 모델', '배관 사이즈', '유속 (m/s)'], formula: () => '' },
       { id: 'p2', name: '압력손실 계산', iconText: 'ΔP', inputs: ['배관 규격 모델', '배관 사이즈', '배관 길이 (m)', '유속 (m/s)', '마찰계수', '유체 밀도 (kg/m³)'], formula: () => '' },
       { id: 'p3', name: '펌프 동력', iconText: 'HP', inputs: ['배관 규격 모델', '배관 사이즈', '유속 (m/s)', '양정 (m)', '펌프 효율 (%)', '유체 밀도 (kg/m³)'], formula: () => '' },
+      { id: 'pipe-1', name: '배관내의 증기유량', iconText: 'Qs', inputs: ['배관 내경 (mm)', '증기 유속 (m/s)', '비체적 (m³/kg)'], formula: () => '' },
+      { id: 'pipe-2', name: '배관내의 증기유속', iconText: 'Vs', inputs: ['증기 유량 (kg/h)', '비체적 (m³/kg)', '배관 내경 (mm)'], formula: () => '' },
+      { id: 'pipe-3', name: '증기유속에 따른 배관사이즈 선정', iconText: 'D', inputs: ['증기 유량 (kg/h)', '비체적 (m³/kg)', '허용 유속 (m/s)'], formula: () => '' },
+      { id: 'pipe-4', name: '증기배관 압력손실 (Darcy-Weisbach)', iconText: 'ΔP', inputs: ['마찰계수', '배관 길이 (m)', '배관 내경 (m)', '증기 밀도 (kg/m³)', '증기 유속 (m/s)'], formula: () => '' },
+      { id: 'pipe-5', name: '재증발 증기량 계산', iconText: 'Fs', inputs: ['고압측 현열 (kJ/kg)', '저압측 현열 (kJ/kg)', '저압측 잠열 (kJ/kg)'], formula: () => '' },
+      { id: 'pipe-6', name: '펌프출구관 배관사이즈 선정', iconText: 'Dp', inputs: ['토출 유량 (m³/min)', '설계 유속 (m/s)'], formula: () => '' },
+      { id: 'pipe-7', name: '보일러 효율', iconText: 'η', inputs: ['실제 증발량 (kg/h)', '발생증기 엔탈피 (kJ/kg)', '급수 엔탈피 (kJ/kg)', '연료 소비량 (kg/h)', '연료 저위발열량 (kJ/kg)'], formula: () => '' },
+      { id: 'pipe-8', name: '열량 단가', iconText: '₩', inputs: ['연료 단가 (원/kg)', '저위발열량 (kcal/kg)', '보일러 효율 (%)'], formula: () => '' },
+      { id: 'pipe-9', name: '증기 단가 (Steam Cost)', iconText: '₩s', inputs: ['연료 단가 (원/kg)', '증기 엔탈피 (kcal/kg)', '급수 엔탈피 (kcal/kg)', '저위발열량 (kcal/kg)', '보일러 효율 (%)'], formula: () => '' },
+      { id: 'pipe-10', name: '감압에 따른 건도 개선', iconText: 'x₂', inputs: ['감압 전 건도 (소수점)', '감압전 현열 (kJ/kg)', '감압전 잠열 (kJ/kg)', '감압후 현열 (kJ/kg)', '감압후 잠열 (kJ/kg)'], formula: () => '' },
+      { id: 'pipe-11', name: '응축수 분리 및 감압 후 건도', iconText: 'x₂', inputs: ['분리후/감압전 현열 (kJ/kg)', '분리후/감압전 잠열 (kJ/kg)', '감압후 현열 (kJ/kg)', '감압후 잠열 (kJ/kg)'], formula: () => '' },
+      { id: 'pipe-12', name: '에어체적비', iconText: 'Va', inputs: ['전체 혼합 압력 (MPa)', '증기 분압 (MPa)'], formula: () => '' },
+      { id: 'pipe-13', name: '경제적 보온의 두께', iconText: 't', inputs: ['보온재 열전도율 (W/m·K)', '내부 온도 (℃)', '외기 온도 (℃)', '배관 외반경 (m)', '허용 열손실량 (W/m)'], formula: () => '' },
     ]
   },
   engineering: {
@@ -270,6 +283,77 @@ const ELEC_FORMULAS = {
   }
 };
 
+const PIPE_FORMULAS = {
+  'pipe-1': (vals) => {
+    const [D, V, v] = vals;
+    const Q = (Math.PI * Math.pow(D, 2) / 4) * (V / v) * 3600 * Math.pow(10, -6);
+    return `증기 유량: ${Q.toFixed(2)} kg/h`;
+  },
+  'pipe-2': (vals) => {
+    const [Q, v, D] = vals;
+    const V = (Q * v) / (3600 * (Math.PI * Math.pow(D, 2) / 4) * Math.pow(10, -6));
+    return `증기 유속: ${V.toFixed(2)} m/s`;
+  },
+  'pipe-3': (vals) => {
+    const [Q, v, V] = vals;
+    const D = Math.sqrt((4 * Q * v) / (Math.PI * V * 3600)) * 1000;
+    return `필요 배관 내경: ${D.toFixed(1)} mm`;
+  },
+  'pipe-4': (vals) => {
+    const [f, L, D, rho, V] = vals;
+    const deltaP = f * (L / D) * ((rho * Math.pow(V, 2)) / 2);
+    const deltaP_kpa = deltaP / 1000;
+    const deltaP_bar = deltaP / 100000;
+    return `압력 손실: ${deltaP.toFixed(2)} Pa (${deltaP_kpa.toFixed(3)} kPa, ${deltaP_bar.toFixed(5)} bar)`;
+  },
+  'pipe-5': (vals) => {
+    const [hf1, hf2, hfg2] = vals;
+    const Fs = ((hf1 - hf2) / hfg2) * 100;
+    return `재증발 비율: ${Fs.toFixed(2)} %`;
+  },
+  'pipe-6': (vals) => {
+    const [Q, V] = vals;
+    const D = Math.sqrt((4 * (Q / 60)) / (Math.PI * V)) * 1000;
+    return `필요 배관 내경: ${D.toFixed(1)} mm`;
+  },
+  'pipe-7': (vals) => {
+    const [Gs, h2, h1, B, Hl] = vals;
+    const eta = ((Gs * (h2 - h1)) / (B * Hl)) * 100;
+    return `보일러 효율: ${eta.toFixed(2)} %`;
+  },
+  'pipe-8': (vals) => {
+    const [Pf, Hl, eff] = vals;
+    const cost = (Pf / (Hl * (eff / 100))) * 10000;
+    return `열량 단가: ${cost.toFixed(2)} 원/10,000kcal`;
+  },
+  'pipe-9': (vals) => {
+    const [Pf, h2, h1, Hl, eff] = vals;
+    const cost = (Pf * (h2 - h1)) / (Hl * (eff / 100));
+    return `증기 단가: ${cost.toFixed(2)} 원/kg`;
+  },
+  'pipe-10': (vals) => {
+    const [x1, hf1, hfg1, hf2, hfg2] = vals;
+    const x2 = ((hf1 + (x1 * hfg1)) - hf2) / hfg2;
+    return `감압 후 건도: ${x2.toFixed(4)} (${(x2 * 100).toFixed(2)} %)`;
+  },
+  'pipe-11': (vals) => {
+    const [hf1, hfg1, hf2, hfg2] = vals;
+    const x2 = ((hf1 + hfg1) - hf2) / hfg2;
+    return `분리/감압 후 건도: ${x2.toFixed(4)} (${(x2 * 100).toFixed(2)} %)`;
+  },
+  'pipe-12': (vals) => {
+    const [Pt, Ps] = vals;
+    const Vair = ((Pt - Ps) / Pt) * 100;
+    return `에어 체적비: ${Vair.toFixed(2)} %`;
+  },
+  'pipe-13': (vals) => {
+    const [k, Ti, Ta, r1, Q_allow] = vals;
+    const r2 = r1 * Math.exp((2 * Math.PI * k * (Ti - Ta)) / Q_allow);
+    const thickness = (r2 - r1) * 1000;
+    return `보온재 포함 총 반경: ${r2.toFixed(4)} m (보온 두께: ${thickness.toFixed(1)} mm)`;
+  }
+};
+
 const getDefaultsForCalc = (calcId) => {
   if (calcId === 'e1') return { 0: '2.5', 1: '30', 2: '1' };
   if (calcId === 'e2') return { 0: '단상 2선식', 3: '2.5', 4: '220' };
@@ -296,6 +380,20 @@ const getDefaultsForCalc = (calcId) => {
   if (calcId === 'elec-17') return { 0: '3000', 1: '500' };
   if (calcId === 'elec-18') return { 0: '100' };
   if (calcId === 'elec-19') return { 0: '4', 1: '24' };
+  // 배관공사 신규 계산기 기본값
+  if (calcId === 'pipe-1') return { 0: '54.5', 1: '25', 2: '0.1944' };
+  if (calcId === 'pipe-2') return { 0: '500', 1: '0.1944', 2: '54.5' };
+  if (calcId === 'pipe-3') return { 0: '500', 1: '0.1944', 2: '25' };
+  if (calcId === 'pipe-4') return { 0: '0.02', 1: '100', 2: '0.0545', 3: '5.15', 4: '25' };
+  if (calcId === 'pipe-5') return { 0: '640', 1: '419', 2: '2257' };
+  if (calcId === 'pipe-6') return { 0: '1.5', 1: '3' };
+  if (calcId === 'pipe-7') return { 0: '5000', 1: '2706', 2: '419', 3: '200', 4: '41000' };
+  if (calcId === 'pipe-8') return { 0: '800', 1: '10000', 2: '85' };
+  if (calcId === 'pipe-9') return { 0: '800', 1: '660', 2: '100', 3: '10000', 4: '85' };
+  if (calcId === 'pipe-10') return { 0: '0.95', 1: '640', 2: '2109', 3: '419', 4: '2257' };
+  if (calcId === 'pipe-11') return { 0: '640', 1: '2109', 2: '419', 3: '2257' };
+  if (calcId === 'pipe-12') return { 0: '0.5', 1: '0.45' };
+  if (calcId === 'pipe-13') return { 0: '0.04', 1: '180', 2: '20', 3: '0.03', 4: '50' };
   return {};
 };
 
@@ -507,6 +605,17 @@ const CalculatorScreen = () => {
         const P_kw = P_w / 1000;
         
         finalResult = `펌프 동력: ${P_kw.toFixed(2)} kW (${(P_kw * 1.341).toFixed(2)} HP) [계산 유량: ${(Q_m3s * 3600).toFixed(2)} m³/h, 배관 내경: ${id.toFixed(1)} mm]`;
+      }
+      else if (selectedCalc.id.startsWith('pipe-')) {
+        const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
+        if (vals.some(isNaN)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        const formulaFn = PIPE_FORMULAS[selectedCalc.id];
+        if (!formulaFn) {
+          throw new Error('수식을 찾을 수 없습니다');
+        }
+        finalResult = formulaFn(vals);
       }
       else if (selectedCalc.id.startsWith('elec-')) {
         const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
