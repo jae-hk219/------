@@ -122,6 +122,24 @@ const CALCULATOR_DATA = {
       { id: 'e1', name: '허용전류 계산', iconText: 'I', inputs: ['전선 단면적 (mm²)', '주변 온도 (°C)', '복선 수 (회로 수)'], formula: () => '' },
       { id: 'e2', name: '전압강하 계산', iconText: 'ΔV', inputs: ['배전 방식', '전류 (A)', '선로 길이 (m)', '전선 단면적 (mm²)', '선로 전압 (V)'], formula: () => '' },
       { id: 'e3', name: '부하전력 계산', iconText: 'W', inputs: ['상 구분', '전압 (V)', '전류 (A)', '역률'], formula: () => '' },
+      { id: 'elec-1', name: '전압 계산', iconText: 'V', inputs: ['전류 (A)', '저항 (Ω)'], formula: () => '' },
+      { id: 'elec-2', name: '전류 계산', iconText: 'I', inputs: ['전압 (V)', '저항 (Ω)'], formula: () => '' },
+      { id: 'elec-3', name: '저항 계산', iconText: 'R', inputs: ['전압 (V)', '전류 (A)'], formula: () => '' },
+      { id: 'elec-4', name: '주울 효과 (발열량)', iconText: 'H', inputs: ['전류 (A)', '저항 (Ω)', '시간 (초)'], formula: () => '' },
+      { id: 'elec-5', name: '유효 전력 계산', iconText: 'P', inputs: ['전압 (V)', '전류 (A)', '역률 (cosθ)'], formula: () => '' },
+      { id: 'elec-6', name: '피상 전력 계산', iconText: 'S', inputs: ['전압 (V)', '전류 (A)'], formula: () => '' },
+      { id: 'elec-7', name: '무효 전력 계산', iconText: 'Q', inputs: ['전압 (V)', '전류 (A)', '무효율 (sinθ)'], formula: () => '' },
+      { id: 'elec-8', name: '역률 계산', iconText: 'PF', inputs: ['유효전력 (W)', '피상전력 (VA)'], formula: () => '' },
+      { id: 'elec-9', name: '임피던스 계산 (R-L-C 직렬)', iconText: 'Z', inputs: ['저항 (Ω)', '유도 리액턴스 (Ω)', '용량 리액턴스 (Ω)'], formula: () => '' },
+      { id: 'elec-11', name: '최대 와이어 길이 (ΔV 기준)', iconText: 'L', inputs: ['허용 전압강하 (V)', '단면적 (mm²)', '전류 (A)'], formula: () => '' },
+      { id: 'elec-12', name: '저항 합계 (직렬)', iconText: 'Rt', inputs: ['저항 1 (Ω)', '저항 2 (Ω)'], formula: () => '' },
+      { id: 'elec-13', name: '저항 합계 (병렬)', iconText: 'R∥', inputs: ['저항 1 (Ω)', '저항 2 (Ω)'], formula: () => '' },
+      { id: 'elec-14', name: '콘덴서 합계 (병렬)', iconText: 'Ct', inputs: ['콘덴서 1 (F)', '콘덴서 2 (F)'], formula: () => '' },
+      { id: 'elec-15', name: 'LED 보호 저항 계산', iconText: 'LED', inputs: ['공급 전압 (V)', 'LED 전압 (V)', 'LED 전류 (A)'], formula: () => '' },
+      { id: 'elec-16', name: '변압기 권선비 계산 (2차 전압)', iconText: 'Tr', inputs: ['1차 전압 (V)', '1차 권선수 (회)', '2차 권선수 (회)'], formula: () => '' },
+      { id: 'elec-17', name: '배터리 수명 계산', iconText: '🔋', inputs: ['배터리 용량 (mAh)', '소비 전류 (mA)'], formula: () => '' },
+      { id: 'elec-18', name: '안테나 길이 (1/4 파장)', iconText: 'λ', inputs: ['주파수 (MHz)'], formula: () => '' },
+      { id: 'elec-19', name: 'CCTV 하드드라이브 용량', iconText: 'HDD', inputs: ['비트레이트 (Mbps)', '녹화 시간 (시간)'], formula: () => '' },
     ]
   },
   plumbing: {
@@ -158,6 +176,100 @@ const CALCULATOR_DATA = {
   }
 };
 
+const ELEC_FORMULAS = {
+  'elec-1': (vals) => {
+    const [I, R] = vals;
+    const V = I * R;
+    return `전압: ${V.toFixed(4)} V`;
+  },
+  'elec-2': (vals) => {
+    const [V, R] = vals;
+    const I = V / R;
+    return `전류: ${I.toFixed(4)} A`;
+  },
+  'elec-3': (vals) => {
+    const [V, I] = vals;
+    const R = V / I;
+    return `저항: ${R.toFixed(4)} Ω`;
+  },
+  'elec-4': (vals) => {
+    const [I, R, t] = vals;
+    const H = Math.pow(I, 2) * R * t;
+    return `발열량: ${H.toFixed(2)} J (${(H / 1000).toFixed(4)} kJ)`;
+  },
+  'elec-5': (vals) => {
+    const [V, I, pf] = vals;
+    const P = V * I * pf;
+    return `유효 전력: ${P.toFixed(2)} W (${(P / 1000).toFixed(4)} kW)`;
+  },
+  'elec-6': (vals) => {
+    const [V, I] = vals;
+    const S = V * I;
+    return `피상 전력: ${S.toFixed(2)} VA (${(S / 1000).toFixed(4)} kVA)`;
+  },
+  'elec-7': (vals) => {
+    const [V, I, sinTheta] = vals;
+    const Q = V * I * sinTheta;
+    return `무효 전력: ${Q.toFixed(2)} var (${(Q / 1000).toFixed(4)} kvar)`;
+  },
+  'elec-8': (vals) => {
+    const [P, S] = vals;
+    const pf = P / S;
+    return `역률: ${pf.toFixed(4)} (${(pf * 100).toFixed(2)} %)`;
+  },
+  'elec-9': (vals) => {
+    const [R, XL, XC] = vals;
+    const Z = Math.sqrt(Math.pow(R, 2) + Math.pow(XL - XC, 2));
+    return `임피던스: ${Z.toFixed(4)} Ω`;
+  },
+  'elec-11': (vals) => {
+    const [e, A, I] = vals;
+    const L = (1000 * e * A) / (35.6 * I);
+    return `최대 와이어 길이: ${L.toFixed(2)} m`;
+  },
+  'elec-12': (vals) => {
+    const [R1, R2] = vals;
+    const Rt = Number(R1) + Number(R2);
+    return `합성 저항 (직렬): ${Rt.toFixed(4)} Ω`;
+  },
+  'elec-13': (vals) => {
+    const [R1, R2] = vals;
+    const Rt = (R1 * R2) / (Number(R1) + Number(R2));
+    return `합성 저항 (병렬): ${Rt.toFixed(4)} Ω`;
+  },
+  'elec-14': (vals) => {
+    const [C1, C2] = vals;
+    const Ct = Number(C1) + Number(C2);
+    return `합성 용량 (병렬): ${Ct.toFixed(6)} F`;
+  },
+  'elec-15': (vals) => {
+    const [Vs, Vf, If_val] = vals;
+    const R = (Vs - Vf) / If_val;
+    const P_mw = (Vs - Vf) * If_val * 1000;
+    return `LED 보호 저항: ${R.toFixed(2)} Ω (저항 소비 전력: ${P_mw.toFixed(1)} mW)`;
+  },
+  'elec-16': (vals) => {
+    const [V1, N1, N2] = vals;
+    const V2 = V1 * (N2 / N1);
+    return `2차 전압: ${V2.toFixed(2)} V (권선비: ${(N2 / N1).toFixed(4)})`;
+  },
+  'elec-17': (vals) => {
+    const [C, I] = vals;
+    const T = (C / I) * 0.7;
+    return `배터리 수명: ${T.toFixed(2)} 시간 (안전율 70% 적용, 이론값: ${(C / I).toFixed(2)} 시간)`;
+  },
+  'elec-18': (vals) => {
+    const [f] = vals;
+    const L = (300 / f) * 0.25;
+    return `안테나 길이: ${L.toFixed(4)} m (${(L * 100).toFixed(2)} cm)`;
+  },
+  'elec-19': (vals) => {
+    const [bitrate, hours] = vals;
+    const storageGB = (bitrate * 3600 * hours) / (8 * 1024);
+    return `필요 저장 용량: ${storageGB.toFixed(2)} GB (${(storageGB / 1024).toFixed(4)} TB)`;
+  }
+};
+
 const getDefaultsForCalc = (calcId) => {
   if (calcId === 'e1') return { 0: '2.5', 1: '30', 2: '1' };
   if (calcId === 'e2') return { 0: '단상 2선식', 3: '2.5', 4: '220' };
@@ -165,6 +277,25 @@ const getDefaultsForCalc = (calcId) => {
   if (calcId === 'p1') return { 0: 'DIN2448', 1: '50A', 2: '2.0' };
   if (calcId === 'p2') return { 0: 'DIN2448', 1: '50A', 3: '2.0', 4: '0.02', 5: '1000' };
   if (calcId === 'p3') return { 0: 'DIN2448', 1: '50A', 2: '2.0', 4: '75', 5: '1000' };
+  // 전기공사 신규 계산기 기본값
+  if (calcId === 'elec-1') return { 0: '10', 1: '100' };
+  if (calcId === 'elec-2') return { 0: '220', 1: '100' };
+  if (calcId === 'elec-3') return { 0: '220', 1: '10' };
+  if (calcId === 'elec-4') return { 0: '5', 1: '10', 2: '60' };
+  if (calcId === 'elec-5') return { 0: '220', 1: '10', 2: '0.9' };
+  if (calcId === 'elec-6') return { 0: '220', 1: '10' };
+  if (calcId === 'elec-7') return { 0: '220', 1: '10', 2: '0.44' };
+  if (calcId === 'elec-8') return { 0: '1980', 1: '2200' };
+  if (calcId === 'elec-9') return { 0: '10', 1: '30', 2: '20' };
+  if (calcId === 'elec-11') return { 0: '5', 1: '2.5', 2: '20' };
+  if (calcId === 'elec-12') return { 0: '100', 1: '200' };
+  if (calcId === 'elec-13') return { 0: '100', 1: '200' };
+  if (calcId === 'elec-14') return { 0: '0.001', 1: '0.002' };
+  if (calcId === 'elec-15') return { 0: '5', 1: '2', 2: '0.02' };
+  if (calcId === 'elec-16') return { 0: '220', 1: '1000', 2: '100' };
+  if (calcId === 'elec-17') return { 0: '3000', 1: '500' };
+  if (calcId === 'elec-18') return { 0: '100' };
+  if (calcId === 'elec-19') return { 0: '4', 1: '24' };
   return {};
 };
 
@@ -376,6 +507,17 @@ const CalculatorScreen = () => {
         const P_kw = P_w / 1000;
         
         finalResult = `펌프 동력: ${P_kw.toFixed(2)} kW (${(P_kw * 1.341).toFixed(2)} HP) [계산 유량: ${(Q_m3s * 3600).toFixed(2)} m³/h, 배관 내경: ${id.toFixed(1)} mm]`;
+      }
+      else if (selectedCalc.id.startsWith('elec-')) {
+        const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
+        if (vals.some(isNaN)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        const formulaFn = ELEC_FORMULAS[selectedCalc.id];
+        if (!formulaFn) {
+          throw new Error('수식을 찾을 수 없습니다');
+        }
+        finalResult = formulaFn(vals);
       }
       else {
         // Fallback for default calculators
