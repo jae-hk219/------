@@ -185,6 +185,9 @@ const CALCULATOR_DATA = {
     color: 'bg-zinc-500',
     list: [
       { id: 'm1', name: '수학 기초 (분수, 백분율, 비례식)', iconText: '%', inputs: ['전체 값', '부분 값'], formula: (vals) => `비율: ${(vals[1] / vals[0] * 100).toFixed(2)} %` },
+      { id: 'math-proportion', name: '비례식 계산 (A : B = C : X)', iconText: 'A:B', inputs: ['A 값', 'B 값', 'C 값'] },
+      { id: 'math-percentage', name: '백분율 계산 (A의 X%)', iconText: '%', inputs: ['전체 값 (A)', '퍼센트 (X)'] },
+      { id: 'math-percent-change', name: '증감율 계산 (A에서 B로)', iconText: '±%', inputs: ['이전 값 (A)', '새로운 값 (B)'] }
     ]
   }
 };
@@ -354,6 +357,26 @@ const PIPE_FORMULAS = {
   }
 };
 
+const MATH_FORMULAS = {
+  'math-proportion': (vals) => {
+    const [A, B, C] = vals;
+    if (A === 0) throw new Error('A 값은 0일 수 없습니다');
+    const X = (B * C) / A;
+    return `X의 값: ${Number(X.toFixed(4))}`;
+  },
+  'math-percentage': (vals) => {
+    const [A, X] = vals;
+    const result = A * (X / 100);
+    return `결과: ${Number(result.toFixed(4))}`;
+  },
+  'math-percent-change': (vals) => {
+    const [A, B] = vals;
+    if (A === 0) throw new Error('이전 값 (A)은 0일 수 없습니다');
+    const change = ((B - A) / A) * 100;
+    return `증감율: ${Number(change.toFixed(2))} % (${change >= 0 ? '증가' : '감소'})`;
+  }
+};
+
 const getDefaultsForCalc = (calcId) => {
   if (calcId === 'e1') return { 0: '2.5', 1: '30', 2: '1' };
   if (calcId === 'e2') return { 0: '단상 2선식', 3: '2.5', 4: '220' };
@@ -394,6 +417,10 @@ const getDefaultsForCalc = (calcId) => {
   if (calcId === 'pipe-11') return { 0: '640', 1: '2109', 2: '419', 3: '2257' };
   if (calcId === 'pipe-12') return { 0: '0.5', 1: '0.45' };
   if (calcId === 'pipe-13') return { 0: '0.04', 1: '180', 2: '20', 3: '0.03', 4: '50' };
+  // 수학 기초 신규 계산기 기본값
+  if (calcId === 'math-proportion') return { 0: '10', 1: '20', 2: '30' };
+  if (calcId === 'math-percentage') return { 0: '1000', 1: '15' };
+  if (calcId === 'math-percent-change') return { 0: '100', 1: '120' };
   return {};
 };
 
@@ -410,12 +437,150 @@ const incrementViewCount = (calcId) => {
   }
 };
 
+const StandardCalculator = ({ isDarkMode }) => {
+  const [display, setDisplay] = useState('0');
+  const [equation, setEquation] = useState('');
+  const [shouldReset, setShouldReset] = useState(false);
+
+  const handleBtn = (val) => {
+    if (val === 'AC' || val === 'C') {
+      setDisplay('0');
+      setEquation('');
+      setShouldReset(false);
+    } else if (val === '+/-') {
+      if (display !== '0') {
+        setDisplay(prev => prev.startsWith('-') ? prev.slice(1) : '-' + prev);
+      }
+    } else if (val === '%') {
+      const num = parseFloat(display);
+      if (!isNaN(num)) {
+        setDisplay(Number((num / 100).toFixed(8)).toString());
+      }
+    } else if (['+', '-', '×', '÷'].includes(val)) {
+      const currentNum = parseFloat(display);
+      if (!isNaN(currentNum)) {
+        if (shouldReset && equation) {
+          // Replace last operator in equation
+          setEquation(prev => prev.trim().replace(/[\+\-×÷]$/, val) + ' ');
+        } else {
+          setEquation(prev => prev ? `${prev} ${display} ${val}` : `${display} ${val}`);
+          setShouldReset(true);
+        }
+      }
+    } else if (val === '=') {
+      if (equation) {
+        try {
+          const fullExpr = `${equation} ${display}`;
+          const sanitizedExpr = fullExpr.replace(/×/g, '*').replace(/÷/g, '/');
+          const evalResult = new Function(`return (${sanitizedExpr})`)();
+          if (isNaN(evalResult) || !isFinite(evalResult)) {
+            setDisplay('오류');
+          } else {
+            const formatted = Number(parseFloat(evalResult.toFixed(10)).toString());
+            setDisplay(String(formatted));
+          }
+          setEquation('');
+          setShouldReset(true);
+        } catch (e) {
+          setDisplay('오류');
+          setEquation('');
+          setShouldReset(true);
+        }
+      }
+    } else if (val === '.') {
+      if (shouldReset) {
+        setDisplay('0.');
+        setShouldReset(false);
+      } else if (!display.includes('.')) {
+        setDisplay(display + '.');
+      }
+    } else {
+      // Digit
+      if (display === '0' || shouldReset) {
+        setDisplay(val);
+        setShouldReset(false);
+      } else {
+        if (display.length < 15) {
+          setDisplay(display + val);
+        }
+      }
+    }
+  };
+
+  const buttons = [
+    [equation || display !== '0' ? 'C' : 'AC', '+/-', '%', '÷'],
+    ['7', '8', '9', '×'],
+    ['4', '5', '6', '-'],
+    ['1', '2', '3', '+'],
+    ['0', '.', '=']
+  ];
+
+  return (
+    <div className={`flex flex-col w-full max-w-[340px] mx-auto p-5 rounded-3xl shadow-md border transition-all duration-300 ${
+      isDarkMode 
+        ? 'bg-zinc-900 border-zinc-850' 
+        : 'bg-white border-zinc-200'
+    }`}>
+      {/* Display Screen */}
+      <div className={`flex flex-col justify-end items-end h-28 px-4 py-2 mb-5 rounded-2xl overflow-hidden select-all ${
+        isDarkMode ? 'bg-zinc-950' : 'bg-zinc-50'
+      }`}>
+        <div className={`text-xs font-bold tracking-wide truncate max-w-full mb-1 h-5 ${
+          isDarkMode ? 'text-zinc-500' : 'text-zinc-400'
+        }`}>
+          {equation}
+        </div>
+        <div className={`text-3xl font-black tracking-tight truncate max-w-full ${
+          isDarkMode ? 'text-white' : 'text-zinc-950'
+        }`}>
+          {display}
+        </div>
+      </div>
+
+      {/* Buttons Grid */}
+      <div className="grid grid-cols-4 gap-2.5">
+        {buttons.flat().map((btn) => {
+          let btnClass = "";
+          let colSpan = "";
+
+          if (btn === '0') {
+            colSpan = "col-span-2";
+          }
+
+          if (['÷', '×', '-', '+', '='].includes(btn)) {
+            btnClass = "bg-orange-500 hover:bg-orange-450 active:bg-orange-600 text-white shadow-sm";
+          } else if (['AC', 'C', '+/-', '%'].includes(btn)) {
+            btnClass = isDarkMode
+              ? "bg-zinc-800 hover:bg-zinc-750 active:bg-zinc-850 text-zinc-300"
+              : "bg-zinc-100 hover:bg-zinc-200 active:bg-zinc-250 text-zinc-600 border border-zinc-200/30";
+          } else {
+            btnClass = isDarkMode
+              ? "bg-zinc-850 hover:bg-zinc-800 active:bg-zinc-900 text-white"
+              : "bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-150 text-zinc-900 border border-zinc-200/50 shadow-sm";
+          }
+
+          return (
+            <button
+              key={btn}
+              onClick={() => handleBtn(btn)}
+              className={`h-12 rounded-xl font-extrabold text-sm flex items-center justify-center cursor-pointer select-none transition-all duration-70 active:scale-[0.93] ${colSpan} ${btnClass}`}
+            >
+              {btn}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 const CalculatorScreen = () => {
   const location = useLocation();
   const { isDarkMode, currentUser } = useAppContext();
   const [selectedCategory, setSelectedCategory] = useState(location.state?.category || null); // null means Home 4-boxes
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'detail'
   const [selectedCalc, setSelectedCalc] = useState(null);
+  const [activeMathTab, setActiveMathTab] = useState('standard'); // 'standard' or 'formulas'
 
   // Form State
   const [inputValues, setInputValues] = useState({});
@@ -454,6 +619,9 @@ const CalculatorScreen = () => {
     setSelectedCategory(key);
     setViewMode('list');
     setSelectedCalc(null);
+    if (key === 'math') {
+      setActiveMathTab('standard');
+    }
   };
 
   const handleCalcSelect = (calc) => {
@@ -628,6 +796,17 @@ const CalculatorScreen = () => {
         }
         finalResult = formulaFn(vals);
       }
+      else if (selectedCalc.id.startsWith('math-')) {
+        const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
+        if (vals.some(isNaN)) {
+          throw new Error('모든 현장 데이터를 올바르게 입력해 주세요');
+        }
+        const formulaFn = MATH_FORMULAS[selectedCalc.id];
+        if (!formulaFn) {
+          throw new Error('수식을 찾을 수 없습니다');
+        }
+        finalResult = formulaFn(vals);
+      }
       else {
         // Fallback for default calculators
         const vals = selectedCalc.inputs.map((_, idx) => parseFloat(inputValues[idx]));
@@ -739,26 +918,83 @@ const CalculatorScreen = () => {
       </div>
 
       {viewMode === 'list' ? (
-        // List Mode
-        <div className="flex-1">
-          {currentCategoryData.list.map(calc => (
-            <div 
-              key={calc.id} 
-              onClick={() => handleCalcSelect(calc)}
-              className={`flex items-center p-4 border-b cursor-pointer transition-colors ${
-                isDarkMode 
-                  ? 'border-zinc-900 hover:bg-zinc-900/40 text-white' 
-                  : 'border-zinc-100 hover:bg-gray-50 text-black'
-              }`}
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-xs shrink-0 ${currentCategoryData.color}`}>
-                {calc.iconText}
+        selectedCategory === 'math' ? (
+          // Custom Math/Daily Life Screen (Standard Calculator UI or Formulas List)
+          <div className="flex-1 p-5">
+            {/* Tab Control */}
+            <div className="flex justify-center mb-6">
+              <div className={`flex p-1 rounded-2xl border ${
+                isDarkMode ? 'bg-zinc-950 border-zinc-850' : 'bg-zinc-100 border-zinc-200'
+              }`}>
+                <button 
+                  onClick={() => setActiveMathTab('standard')}
+                  className={`px-5 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 ${
+                    activeMathTab === 'standard'
+                      ? (isDarkMode ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-zinc-900 shadow-sm')
+                      : (isDarkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-700')
+                  }`}
+                >
+                  일반 계산기
+                </button>
+                <button 
+                  onClick={() => setActiveMathTab('formulas')}
+                  className={`px-5 py-2 rounded-xl text-xs font-extrabold transition-all duration-200 ${
+                    activeMathTab === 'formulas'
+                      ? (isDarkMode ? 'bg-zinc-800 text-white shadow-sm' : 'bg-white text-zinc-900 shadow-sm')
+                      : (isDarkMode ? 'text-zinc-500 hover:text-zinc-300' : 'text-zinc-500 hover:text-zinc-700')
+                  }`}
+                >
+                  수학 기초 공식
+                </button>
               </div>
-              <span className="ml-4 font-bold text-xs flex-1">{calc.name}</span>
-              <span className={`font-bold text-lg leading-none shrink-0 ${isDarkMode ? 'text-zinc-700' : 'text-gray-300'}`}>&gt;</span>
             </div>
-          ))}
-        </div>
+
+            {activeMathTab === 'standard' ? (
+              <StandardCalculator isDarkMode={isDarkMode} />
+            ) : (
+              <div className="rounded-3xl border overflow-hidden transition-colors duration-300 border-transparent">
+                {currentCategoryData.list.map(calc => (
+                  <div 
+                    key={calc.id} 
+                    onClick={() => handleCalcSelect(calc)}
+                    className={`flex items-center p-4 border-b cursor-pointer transition-colors ${
+                      isDarkMode 
+                        ? 'border-zinc-900 hover:bg-zinc-900/40 text-white' 
+                        : 'border-zinc-100 hover:bg-gray-50 text-black'
+                    }`}
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-xs shrink-0 ${currentCategoryData.color}`}>
+                      {calc.iconText}
+                    </div>
+                    <span className="ml-4 font-bold text-xs flex-1">{calc.name}</span>
+                    <span className={`font-bold text-lg leading-none shrink-0 ${isDarkMode ? 'text-zinc-700' : 'text-gray-300'}`}>&gt;</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          // Default Category List Mode
+          <div className="flex-1">
+            {currentCategoryData.list.map(calc => (
+              <div 
+                key={calc.id} 
+                onClick={() => handleCalcSelect(calc)}
+                className={`flex items-center p-4 border-b cursor-pointer transition-colors ${
+                  isDarkMode 
+                    ? 'border-zinc-900 hover:bg-zinc-900/40 text-white' 
+                    : 'border-zinc-100 hover:bg-gray-50 text-black'
+                }`}
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-xs shrink-0 ${currentCategoryData.color}`}>
+                  {calc.iconText}
+                </div>
+                <span className="ml-4 font-bold text-xs flex-1">{calc.name}</span>
+                <span className={`font-bold text-lg leading-none shrink-0 ${isDarkMode ? 'text-zinc-700' : 'text-gray-300'}`}>&gt;</span>
+              </div>
+            ))}
+          </div>
+        )
       ) : (
         // Detail / Form Mode
         <div className={`flex-1 p-5 transition-colors duration-300 ${
